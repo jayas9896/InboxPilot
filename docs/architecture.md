@@ -16,6 +16,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - Storage Layer: Local SQL database with room for later migration to managed SQL and object storage.
 - Background Workers (optional): Periodic ingestion, classification, and summarization tasks.
 - Observability: Structured logs for ingestion and AI events, plus lightweight metrics.
+- Identity Context: Default user record with user_id fields for future multi-user support.
 
 ## Data Flow
 1. User connects an email provider in read-only mode.

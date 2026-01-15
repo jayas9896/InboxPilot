@@ -59,7 +59,7 @@ def list_templates() -> list[CategoryTemplate]:
     ]
 
 
-def load_template(store: SqliteStore, template_name: str) -> int:
+def load_template(store: SqliteStore, template_name: str, user_id: int | None = None) -> int:
     """Summary: Load a template pack into storage.
 
     Importance: Accelerates onboarding with prebuilt category packs.
@@ -72,6 +72,6 @@ def load_template(store: SqliteStore, template_name: str) -> int:
         raise ValueError(f"Unknown template: {template_name}")
     created = 0
     for category in template.categories:
-        store.create_category(category)
+        store.create_category(category, user_id=user_id)
         created += 1
     return created

@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from inboxpilot.ai import MockAiProvider
-from inboxpilot.models import Meeting
+from inboxpilot.models import Meeting, User
 from inboxpilot.services import MeetingSummaryService
 from inboxpilot.storage.sqlite_store import SqliteStore
 
@@ -24,11 +24,13 @@ def test_meeting_summary_creates_note(tmp_path: Path) -> None:
 
     store = SqliteStore(str(tmp_path / "test.db"))
     store.initialize()
+    user_id = store.ensure_user(User(display_name="Local User", email="local@inboxpilot"))
     service = MeetingSummaryService(
         store=store,
         ai_provider=MockAiProvider(),
         provider_name="mock",
         model_name="mock",
+        user_id=user_id,
     )
     store.save_meetings(
         [
@@ -40,10 +42,11 @@ def test_meeting_summary_creates_note(tmp_path: Path) -> None:
                 end_time=datetime.utcnow(),
                 transcript_ref=None,
             )
-        ]
+        ],
+        user_id=user_id,
     )
     service.add_transcript(1, "We decided to ship on Friday.")
     note_id = service.summarize_meeting(1)
-    notes = store.list_notes("meeting", 1)
+    notes = store.list_notes("meeting", 1, user_id=user_id)
     assert note_id > 0
     assert notes

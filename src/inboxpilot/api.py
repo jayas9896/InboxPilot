@@ -247,7 +247,7 @@ def create_app(config: AppConfig) -> FastAPI:
                 "timestamp": message.timestamp,
                 "snippet": message.snippet,
             }
-            for message in services.store.list_messages(limit)
+            for message in services.store.list_messages(limit, user_id=services.user_id)
         ]
 
     @app.get("/meetings")
@@ -281,7 +281,7 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return [
             {"id": category.id, "name": category.name, "description": category.description}
-            for category in services.store.list_categories()
+            for category in services.store.list_categories(user_id=services.user_id)
         ]
 
     @app.post("/categories")
@@ -341,7 +341,7 @@ def create_app(config: AppConfig) -> FastAPI:
         Alternatives: Require manual creation for every category.
         """
 
-        created = load_template(services.store, payload.template_name)
+        created = load_template(services.store, payload.template_name, user_id=services.user_id)
         return {"created": created}
 
     @app.post("/chat")

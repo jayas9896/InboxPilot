@@ -28,6 +28,7 @@ class IngestionService:
     """
 
     store: SqliteStore
+    user_id: int
 
     def ingest_messages(self, messages: list[Message]) -> list[int]:
         """Summary: Persist incoming messages in storage.
@@ -36,7 +37,7 @@ class IngestionService:
         Alternatives: Use a queue-based ingestion pipeline.
         """
 
-        ids = self.store.save_messages(messages)
+        ids = self.store.save_messages(messages, user_id=self.user_id)
         logger.info("Ingested %s messages.", len(ids))
         return ids
 
@@ -50,6 +51,7 @@ class MeetingService:
     """
 
     store: SqliteStore
+    user_id: int
 
     def ingest_meetings(self, meetings: list[Meeting]) -> list[int]:
         """Summary: Persist incoming meetings in storage.
@@ -58,7 +60,7 @@ class MeetingService:
         Alternatives: Store meetings only in memory for each session.
         """
 
-        ids = self.store.save_meetings(meetings)
+        ids = self.store.save_meetings(meetings, user_id=self.user_id)
         logger.info("Ingested %s meetings.", len(ids))
         return ids
 
@@ -69,7 +71,7 @@ class MeetingService:
         Alternatives: Query meetings directly from the provider each time.
         """
 
-        return self.store.list_meetings(limit)
+        return self.store.list_meetings(limit, user_id=self.user_id)
 
 
 @dataclass(frozen=True)
@@ -85,6 +87,7 @@ class CategoryService:
     ai_provider: AiProvider
     provider_name: str
     model_name: str
+    user_id: int
 
     def create_category(self, name: str, description: str | None) -> int:
         """Summary: Create a new category record.
@@ -94,7 +97,7 @@ class CategoryService:
         """
 
         category = Category(name=name, description=description)
-        category_id = self.store.create_category(category)
+        category_id = self.store.create_category(category, user_id=self.user_id)
         logger.info("Created category %s.", name)
         return category_id
 
@@ -106,7 +109,8 @@ class CategoryService:
         """
 
         categories = [
-            Category(name=item.name, description=item.description) for item in self.store.list_categories()
+            Category(name=item.name, description=item.description)
+            for item in self.store.list_categories(user_id=self.user_id)
         ]
         return self.classifier.suggest(message, categories)
 
@@ -117,10 +121,10 @@ class CategoryService:
         Alternatives: Use only deterministic rules or manual assignment.
         """
 
-        message = self.store.get_message(message_id)
+        message = self.store.get_message(message_id, user_id=self.user_id)
         if not message:
             raise ValueError(f"Message {message_id} not found")
-        stored_categories = self.store.list_categories()
+        stored_categories = self.store.list_categories(user_id=self.user_id)
         categories = [
             Category(name=item.name, description=item.description) for item in stored_categories
         ]
@@ -144,7 +148,7 @@ class CategoryService:
             purpose="category_suggestion",
             timestamp=datetime.utcnow(),
         )
-        request_id = self.store.log_ai_request(request)
+        request_id = self.store.log_ai_request(request, user_id=self.user_id)
         response = AiResponse(
             request_id=request_id,
             response_text=response_text,
@@ -172,6 +176,7 @@ class CategoryService:
             ),
             categories,
         )
+
     def assign_category(self, message_id: int, category_id: int) -> None:
         """Summary: Assign a category to a stored message.
 
@@ -195,6 +200,9 @@ class ChatService:
     ai_provider: AiProvider
     provider_name: str
     model_name: str
+    user_id: int
+    user_id: int
+    user_id: int
 
     def answer(self, query: str, limit: int = 3) -> str:
         """Summary: Answer a question using message context.
@@ -203,7 +211,7 @@ class ChatService:
         Alternatives: Return search results without AI summarization.
         """
 
-        messages = self.store.search_messages(query, limit)
+        messages = self.store.search_messages(query, limit, user_id=self.user_id)
         context = "\n\n".join(self._format_message(message) for message in messages)
         prompt = (
             "Answer the user question using the message context.\n\n"
@@ -243,7 +251,7 @@ class ChatService:
         """
 
         note = Note(parent_type=parent_type, parent_id=parent_id, content=content)
-        note_id = self.store.add_note(note)
+        note_id = self.store.add_note(note, user_id=self.user_id)
         logger.info("Added note for %s %s.", parent_type, parent_id)
         return note_id
 
@@ -254,7 +262,7 @@ class ChatService:
         Alternatives: Search by provider message ID instead.
         """
 
-        message = self.store.get_message(message_id)
+        message = self.store.get_message(message_id, user_id=self.user_id)
         if not message:
             raise ValueError(f"Message {message_id} not found")
         return message
@@ -287,7 +295,7 @@ class ChatService:
             purpose=purpose,
             timestamp=datetime.utcnow(),
         )
-        request_id = self.store.log_ai_request(request)
+        request_id = self.store.log_ai_request(request, user_id=self.user_id)
         response = AiResponse(
             request_id=request_id,
             response_text=response_text,
@@ -318,7 +326,7 @@ class TaskService:
         """
 
         task = Task(parent_type=parent_type, parent_id=parent_id, description=description)
-        task_id = self.store.add_task(task)
+        task_id = self.store.add_task(task, user_id=self.user_id)
         logger.info("Added task for %s %s.", parent_type, parent_id)
         return task_id
 
@@ -329,7 +337,7 @@ class TaskService:
         Alternatives: Use external task systems for tracking.
         """
 
-        return self.store.list_tasks(parent_type, parent_id)
+        return self.store.list_tasks(parent_type, parent_id, user_id=self.user_id)
 
     def extract_tasks_from_message(self, message_id: int) -> list[int]:
         """Summary: Extract action items from a message using AI.
@@ -338,7 +346,7 @@ class TaskService:
         Alternatives: Require manual task entry for each action item.
         """
 
-        message = self.store.get_message(message_id)
+        message = self.store.get_message(message_id, user_id=self.user_id)
         if not message:
             raise ValueError(f"Message {message_id} not found")
         prompt = (
@@ -355,7 +363,7 @@ class TaskService:
             purpose="extract_tasks",
             timestamp=datetime.utcnow(),
         )
-        request_id = self.store.log_ai_request(request)
+        request_id = self.store.log_ai_request(request, user_id=self.user_id)
         response = AiResponse(
             request_id=request_id,
             response_text=response_text,
@@ -393,7 +401,7 @@ class TaskService:
             purpose="extract_tasks",
             timestamp=datetime.utcnow(),
         )
-        request_id = self.store.log_ai_request(request)
+        request_id = self.store.log_ai_request(request, user_id=self.user_id)
         response = AiResponse(
             request_id=request_id,
             response_text=response_text,
@@ -455,7 +463,7 @@ class MeetingSummaryService:
             purpose="meeting_summary",
             timestamp=datetime.utcnow(),
         )
-        request_id = self.store.log_ai_request(request)
+        request_id = self.store.log_ai_request(request, user_id=self.user_id)
         response = AiResponse(
             request_id=request_id,
             response_text=response_text,
@@ -464,6 +472,6 @@ class MeetingSummaryService:
         )
         self.store.log_ai_response(response)
         note = Note(parent_type="meeting", parent_id=meeting_id, content=response_text)
-        note_id = self.store.add_note(note)
+        note_id = self.store.add_note(note, user_id=self.user_id)
         logger.info("Created meeting summary for meeting %s.", meeting_id)
         return note_id

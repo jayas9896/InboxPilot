@@ -11,3 +11,4 @@ CL-0008 | Meeting transcripts and summaries | 2026-01-15 | Added meeting transcr
 CL-0009 | AI category suggestions | 2026-01-15 | Added AI-based category suggestions with CLI/API support.
 CL-0010 | Web dashboard | 2026-01-15 | Added a static UI served by the FastAPI app.
 CL-0011 | Minimal logging | 2026-01-15 | Added basic logging for core workflows.
+CL-0012 | Default user scaffolding | 2026-01-15 | Added user records and user_id propagation.

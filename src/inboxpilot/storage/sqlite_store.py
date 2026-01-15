@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note, Task
+from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note, Task, User
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,19 @@ class StoredCategory:
     id: int
     name: str
     description: str | None
+
+
+@dataclass(frozen=True)
+class StoredUser:
+    """Summary: User record with database identifier.
+
+    Importance: Enables multi-user and future tenant boundaries.
+    Alternatives: Keep only a single implicit user without records.
+    """
+
+    id: int
+    display_name: str
+    email: str
 
 
 @dataclass(frozen=True)
@@ -121,8 +134,10 @@ class SqliteStore:
                 """
                 CREATE TABLE IF NOT EXISTS categories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    description TEXT
+                    user_id INTEGER,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    UNIQUE(name, user_id)
                 )
                 """
             )
@@ -130,6 +145,7 @@ class SqliteStore:
                 """
                 CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
                     provider_message_id TEXT NOT NULL UNIQUE,
                     subject TEXT,
                     sender TEXT,
@@ -153,6 +169,7 @@ class SqliteStore:
                 """
                 CREATE TABLE IF NOT EXISTS notes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
                     parent_type TEXT NOT NULL,
                     parent_id INTEGER NOT NULL,
                     content TEXT NOT NULL
@@ -163,6 +180,7 @@ class SqliteStore:
                 """
                 CREATE TABLE IF NOT EXISTS meetings (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
                     provider_event_id TEXT NOT NULL UNIQUE,
                     title TEXT,
                     participants TEXT,
@@ -176,6 +194,7 @@ class SqliteStore:
                 """
                 CREATE TABLE IF NOT EXISTS ai_requests (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
                     provider TEXT NOT NULL,
                     model TEXT NOT NULL,
                     prompt TEXT NOT NULL,
@@ -188,6 +207,7 @@ class SqliteStore:
                 """
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
                     parent_type TEXT NOT NULL,
                     parent_id INTEGER NOT NULL,
                     description TEXT NOT NULL,
@@ -206,6 +226,15 @@ class SqliteStore:
             )
             cursor.execute(
                 """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    display_name TEXT NOT NULL,
+                    email TEXT NOT NULL UNIQUE
+                )
+                """
+            )
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS ai_responses (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     request_id INTEGER NOT NULL,
@@ -216,8 +245,36 @@ class SqliteStore:
                 """
             )
             connection.commit()
+        self._ensure_column("categories", "user_id")
+        self._ensure_column("messages", "user_id")
+        self._ensure_column("notes", "user_id")
+        self._ensure_column("meetings", "user_id")
+        self._ensure_column("ai_requests", "user_id")
+        self._ensure_column("tasks", "user_id")
 
-    def save_messages(self, messages: list[Message]) -> list[int]:
+    def ensure_user(self, user: User) -> int:
+        """Summary: Ensure a user exists and return their ID.
+
+        Importance: Provides a stable user record for data ownership.
+        Alternatives: Omit user records in single-user mode.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                "INSERT OR IGNORE INTO users (display_name, email) VALUES (?, ?)",
+                (user.display_name, user.email),
+            )
+            if cursor.lastrowid:
+                user_id = cursor.lastrowid
+            else:
+                cursor.execute("SELECT id FROM users WHERE email = ?", (user.email,))
+                row = cursor.fetchone()
+                user_id = int(row[0]) if row else 0
+            connection.commit()
+        return int(user_id)
+
+    def save_messages(self, messages: list[Message], user_id: int | None = None) -> list[int]:
         """Summary: Persist messages and return their database IDs.
 
         Importance: Enables later lookup for category assignment and chat context.
@@ -231,10 +288,11 @@ class SqliteStore:
                 cursor.execute(
                     """
                     INSERT OR IGNORE INTO messages (
-                        provider_message_id, subject, sender, recipients, timestamp, snippet, body
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        user_id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
+                        user_id,
                         message.provider_message_id,
                         message.subject,
                         message.sender,
@@ -257,7 +315,7 @@ class SqliteStore:
             connection.commit()
         return ids
 
-    def list_messages(self, limit: int) -> list[StoredMessage]:
+    def list_messages(self, limit: int, user_id: int | None = None) -> list[StoredMessage]:
         """Summary: Retrieve recent messages from storage.
 
         Importance: Supplies chat context and CLI listing.
@@ -266,19 +324,33 @@ class SqliteStore:
 
         with self._connection() as connection:
             cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
-                FROM messages
-                ORDER BY timestamp DESC
-                LIMIT ?
-                """,
-                (limit,),
-            )
+            if user_id is None:
+                cursor.execute(
+                    """
+                    SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                    FROM messages
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                    FROM messages
+                    WHERE user_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                    """,
+                    (user_id, limit),
+                )
             rows = cursor.fetchall()
         return [StoredMessage(*row) for row in rows]
 
-    def search_messages(self, query: str, limit: int) -> list[StoredMessage]:
+    def search_messages(
+        self, query: str, limit: int, user_id: int | None = None
+    ) -> list[StoredMessage]:
         """Summary: Search messages by subject or body.
 
         Importance: Supports chat and quick filtering.
@@ -288,20 +360,32 @@ class SqliteStore:
         pattern = f"%{query}%"
         with self._connection() as connection:
             cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
-                FROM messages
-                WHERE subject LIKE ? OR body LIKE ?
-                ORDER BY timestamp DESC
-                LIMIT ?
-                """,
-                (pattern, pattern, limit),
-            )
+            if user_id is None:
+                cursor.execute(
+                    """
+                    SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                    FROM messages
+                    WHERE subject LIKE ? OR body LIKE ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                    """,
+                    (pattern, pattern, limit),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                    FROM messages
+                    WHERE user_id = ? AND (subject LIKE ? OR body LIKE ?)
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                    """,
+                    (user_id, pattern, pattern, limit),
+                )
             rows = cursor.fetchall()
         return [StoredMessage(*row) for row in rows]
 
-    def create_category(self, category: Category) -> int:
+    def create_category(self, category: Category, user_id: int | None = None) -> int:
         """Summary: Create a category and return its ID.
 
         Importance: Enables user-defined organization and templates.
@@ -311,8 +395,8 @@ class SqliteStore:
         with self._connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
-                "INSERT OR IGNORE INTO categories (name, description) VALUES (?, ?)",
-                (category.name, category.description),
+                "INSERT OR IGNORE INTO categories (user_id, name, description) VALUES (?, ?, ?)",
+                (user_id, category.name, category.description),
             )
             if cursor.lastrowid:
                 category_id = cursor.lastrowid
@@ -323,7 +407,7 @@ class SqliteStore:
             connection.commit()
         return category_id
 
-    def list_categories(self) -> list[StoredCategory]:
+    def list_categories(self, user_id: int | None = None) -> list[StoredCategory]:
         """Summary: Retrieve all categories.
 
         Importance: Powers category management and assignment flows.
@@ -332,11 +416,17 @@ class SqliteStore:
 
         with self._connection() as connection:
             cursor = connection.cursor()
-            cursor.execute("SELECT id, name, description FROM categories ORDER BY name")
+            if user_id is None:
+                cursor.execute("SELECT id, name, description FROM categories ORDER BY name")
+            else:
+                cursor.execute(
+                    "SELECT id, name, description FROM categories WHERE user_id = ? ORDER BY name",
+                    (user_id,),
+                )
             rows = cursor.fetchall()
         return [StoredCategory(*row) for row in rows]
 
-    def save_meetings(self, meetings: list[Meeting]) -> list[int]:
+    def save_meetings(self, meetings: list[Meeting], user_id: int | None = None) -> list[int]:
         """Summary: Persist meetings and return their database IDs.
 
         Importance: Enables future meeting queries and note linking.
@@ -350,10 +440,11 @@ class SqliteStore:
                 cursor.execute(
                     """
                     INSERT OR IGNORE INTO meetings (
-                        provider_event_id, title, participants, start_time, end_time, transcript_ref
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                        user_id, provider_event_id, title, participants, start_time, end_time, transcript_ref
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
+                        user_id,
                         meeting.provider_event_id,
                         meeting.title,
                         meeting.participants,
@@ -375,7 +466,7 @@ class SqliteStore:
             connection.commit()
         return ids
 
-    def list_meetings(self, limit: int) -> list[StoredMeeting]:
+    def list_meetings(self, limit: int, user_id: int | None = None) -> list[StoredMeeting]:
         """Summary: Retrieve recent meetings from storage.
 
         Importance: Supplies CLI listing and meeting context.
@@ -384,15 +475,27 @@ class SqliteStore:
 
         with self._connection() as connection:
             cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT id, provider_event_id, title, participants, start_time, end_time, transcript_ref
-                FROM meetings
-                ORDER BY start_time DESC
-                LIMIT ?
-                """,
-                (limit,),
-            )
+            if user_id is None:
+                cursor.execute(
+                    """
+                    SELECT id, provider_event_id, title, participants, start_time, end_time, transcript_ref
+                    FROM meetings
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, provider_event_id, title, participants, start_time, end_time, transcript_ref
+                    FROM meetings
+                    WHERE user_id = ?
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                    """,
+                    (user_id, limit),
+                )
             rows = cursor.fetchall()
         return [StoredMeeting(*row) for row in rows]
 
@@ -436,7 +539,7 @@ class SqliteStore:
             rows = cursor.fetchall()
         return [StoredCategory(*row) for row in rows]
 
-    def add_note(self, note: Note) -> int:
+    def add_note(self, note: Note, user_id: int | None = None) -> int:
         """Summary: Persist a note linked to a message or meeting.
 
         Importance: Captures user context and action items.
@@ -446,14 +549,16 @@ class SqliteStore:
         with self._connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
-                "INSERT INTO notes (parent_type, parent_id, content) VALUES (?, ?, ?)",
-                (note.parent_type, note.parent_id, note.content),
+                "INSERT INTO notes (user_id, parent_type, parent_id, content) VALUES (?, ?, ?, ?)",
+                (user_id, note.parent_type, note.parent_id, note.content),
             )
             note_id = cursor.lastrowid
             connection.commit()
         return int(note_id)
 
-    def list_notes(self, parent_type: str, parent_id: int) -> list[Note]:
+    def list_notes(
+        self, parent_type: str, parent_id: int, user_id: int | None = None
+    ) -> list[Note]:
         """Summary: Retrieve notes for a message or meeting.
 
         Importance: Supports reviewing stored context for follow-ups.
@@ -462,14 +567,24 @@ class SqliteStore:
 
         with self._connection() as connection:
             cursor = connection.cursor()
-            cursor.execute(
-                "SELECT parent_type, parent_id, content FROM notes WHERE parent_type = ? AND parent_id = ?",
-                (parent_type, parent_id),
-            )
+            if user_id is None:
+                cursor.execute(
+                    "SELECT parent_type, parent_id, content FROM notes WHERE parent_type = ? AND parent_id = ?",
+                    (parent_type, parent_id),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT parent_type, parent_id, content
+                    FROM notes
+                    WHERE parent_type = ? AND parent_id = ? AND user_id = ?
+                    """,
+                    (parent_type, parent_id, user_id),
+                )
             rows = cursor.fetchall()
         return [Note(*row) for row in rows]
 
-    def add_task(self, task: Task) -> int:
+    def add_task(self, task: Task, user_id: int | None = None) -> int:
         """Summary: Persist a task linked to a message or meeting.
 
         Importance: Tracks action items for follow-up workflows.
@@ -480,16 +595,18 @@ class SqliteStore:
             cursor = connection.cursor()
             cursor.execute(
                 """
-                INSERT INTO tasks (parent_type, parent_id, description, status, due_date)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO tasks (user_id, parent_type, parent_id, description, status, due_date)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (task.parent_type, task.parent_id, task.description, task.status, task.due_date),
+                (user_id, task.parent_type, task.parent_id, task.description, task.status, task.due_date),
             )
             task_id = cursor.lastrowid
             connection.commit()
         return int(task_id)
 
-    def list_tasks(self, parent_type: str, parent_id: int) -> list[StoredTask]:
+    def list_tasks(
+        self, parent_type: str, parent_id: int, user_id: int | None = None
+    ) -> list[StoredTask]:
         """Summary: Retrieve tasks for a message or meeting.
 
         Importance: Supports reviewing action items derived from communications.
@@ -498,15 +615,26 @@ class SqliteStore:
 
         with self._connection() as connection:
             cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT id, parent_type, parent_id, description, status, due_date
-                FROM tasks
-                WHERE parent_type = ? AND parent_id = ?
-                ORDER BY id ASC
-                """,
-                (parent_type, parent_id),
-            )
+            if user_id is None:
+                cursor.execute(
+                    """
+                    SELECT id, parent_type, parent_id, description, status, due_date
+                    FROM tasks
+                    WHERE parent_type = ? AND parent_id = ?
+                    ORDER BY id ASC
+                    """,
+                    (parent_type, parent_id),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, parent_type, parent_id, description, status, due_date
+                    FROM tasks
+                    WHERE parent_type = ? AND parent_id = ? AND user_id = ?
+                    ORDER BY id ASC
+                    """,
+                    (parent_type, parent_id, user_id),
+                )
             rows = cursor.fetchall()
         return [StoredTask(*row) for row in rows]
 
@@ -545,7 +673,7 @@ class SqliteStore:
             row = cursor.fetchone()
         return StoredMeetingTranscript(*row) if row else None
 
-    def get_message(self, message_id: int) -> StoredMessage | None:
+    def get_message(self, message_id: int, user_id: int | None = None) -> StoredMessage | None:
         """Summary: Retrieve a message by database ID.
 
         Importance: Supports task extraction and draft workflows.
@@ -554,18 +682,28 @@ class SqliteStore:
 
         with self._connection() as connection:
             cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
-                FROM messages
-                WHERE id = ?
-                """,
-                (message_id,),
-            )
+            if user_id is None:
+                cursor.execute(
+                    """
+                    SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                    FROM messages
+                    WHERE id = ?
+                    """,
+                    (message_id,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                    FROM messages
+                    WHERE id = ? AND user_id = ?
+                    """,
+                    (message_id, user_id),
+                )
             row = cursor.fetchone()
         return StoredMessage(*row) if row else None
 
-    def log_ai_request(self, request: AiRequest) -> int:
+    def log_ai_request(self, request: AiRequest, user_id: int | None = None) -> int:
         """Summary: Persist an AI request for auditing.
 
         Importance: Tracks prompts and providers used by the system.
@@ -576,10 +714,11 @@ class SqliteStore:
             cursor = connection.cursor()
             cursor.execute(
                 """
-                INSERT INTO ai_requests (provider, model, prompt, purpose, timestamp)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO ai_requests (user_id, provider, model, prompt, purpose, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    user_id,
                     request.provider,
                     request.model,
                     request.prompt,
@@ -615,6 +754,22 @@ class SqliteStore:
             response_id = cursor.lastrowid
             connection.commit()
         return int(response_id)
+
+    def _ensure_column(self, table: str, column: str) -> None:
+        """Summary: Ensure a column exists in a table.
+
+        Importance: Provides lightweight migration support for new fields.
+        Alternatives: Use a migration tool to manage schema changes.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = {row[1] for row in cursor.fetchall()}
+            if column in columns:
+                return
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} INTEGER")
+            connection.commit()
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:

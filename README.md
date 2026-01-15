@@ -81,6 +81,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 ## Configuration
 - All variables are defined in `config/defaults.json`.
 - Secrets live in `.env` and override defaults via `src/inboxpilot/config.py`.
+- Single-user mode uses `INBOXPILOT_DEFAULT_USER_NAME` and `INBOXPILOT_DEFAULT_USER_EMAIL`.
 
 ## Categories
 - Categories are first-class objects stored in SQLite.

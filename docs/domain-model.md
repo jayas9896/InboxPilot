@@ -9,29 +9,29 @@
 - auth_type, read_only, status
 
 ## Message
-- id, provider_message_id, thread_id, subject
+- id, user_id, provider_message_id, thread_id, subject
 - sender, recipients, timestamp, snippet, body
 - assigned_category_ids
 
 ## Thread
-- id, provider_thread_id, message_ids
+- id, user_id, provider_thread_id, message_ids
 
 ## Meeting
-- id, provider_event_id, title, participants, start_time, end_time
+- id, user_id, provider_event_id, title, participants, start_time, end_time
 - transcript_ref (optional)
 
 ## MeetingTranscript
 - meeting_id, content
 
 ## Category
-- id, name, description (optional), template_tag (optional)
+- id, user_id, name, description (optional), template_tag (optional)
 - user_id or tenant_id for future multi-user
 
 ## Note
-- id, parent_type (message/meeting), parent_id, content
+- id, user_id, parent_type (message/meeting), parent_id, content
 
 ## Task / Follow-up
-- id, parent_type, parent_id, description, status, due_date
+- id, user_id, parent_type, parent_id, description, status, due_date
 
 ## AIRequest
 - id, user_id, provider, model, prompt, timestamp

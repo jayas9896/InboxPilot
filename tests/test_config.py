@@ -63,7 +63,9 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
           \"imap_password\": \"\",
           \"imap_mailbox\": \"INBOX\",
           \"api_host\": \"127.0.0.1\",
-          \"api_port\": \"8000\"
+          \"api_port\": \"8000\",
+          \"default_user_name\": \"Local User\",
+          \"default_user_email\": \"local@inboxpilot\"
         }
         """.strip(),
         encoding="utf-8",
@@ -76,3 +78,5 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     config = AppConfig.from_env()
     assert config.db_path == "test.db"
     assert config.ai_provider == "mock"
+    assert config.default_user_name == "Local User"
+    assert config.default_user_email == "local@inboxpilot"

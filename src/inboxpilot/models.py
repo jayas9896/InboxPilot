@@ -11,6 +11,18 @@ from datetime import datetime
 
 
 @dataclass(frozen=True)
+class User:
+    """Summary: Represents a user within InboxPilot.
+
+    Importance: Enables multi-user expansion without a schema rewrite.
+    Alternatives: Treat all data as single-user with no user records.
+    """
+
+    display_name: str
+    email: str
+
+
+@dataclass(frozen=True)
 class Message:
     """Summary: Represents an email message with metadata and content.
 

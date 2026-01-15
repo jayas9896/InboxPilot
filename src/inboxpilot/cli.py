@@ -159,17 +159,17 @@ def run_cli() -> None:
         return
 
     if args.command == "load-template":
-        created = load_template(services.store, args.template_name)
+        created = load_template(services.store, args.template_name, user_id=services.user_id)
         print(f"Loaded {created} categories from template.")
         return
 
     if args.command == "list-categories":
-        for category in services.store.list_categories():
+        for category in services.store.list_categories(user_id=services.user_id):
             print(f"{category.id}: {category.name} - {category.description or ''}")
         return
 
     if args.command == "list-messages":
-        for message in services.store.list_messages(args.limit):
+        for message in services.store.list_messages(args.limit, user_id=services.user_id):
             print(f"{message.id}: {message.subject} ({message.sender})")
         return
 
