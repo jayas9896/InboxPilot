@@ -84,6 +84,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     extract_tasks.add_argument("message_id", type=int)
 
+    add_transcript = subparsers.add_parser("add-meeting-transcript", help="Add meeting transcript")
+    add_transcript.add_argument("meeting_id", type=int)
+    add_transcript.add_argument("content", type=str)
+
+    summarize_meeting = subparsers.add_parser(
+        "summarize-meeting", help="Summarize a meeting transcript"
+    )
+    summarize_meeting.add_argument("meeting_id", type=int)
+
+    extract_meeting_tasks = subparsers.add_parser(
+        "extract-meeting-tasks", help="Extract tasks from a meeting transcript"
+    )
+    extract_meeting_tasks.add_argument("meeting_id", type=int)
+
     return parser
 
 
@@ -190,6 +204,21 @@ def run_cli() -> None:
 
     if args.command == "extract-tasks":
         task_ids = services.tasks.extract_tasks_from_message(args.message_id)
+        print(f"Extracted {len(task_ids)} tasks.")
+        return
+
+    if args.command == "add-meeting-transcript":
+        services.meeting_notes.add_transcript(args.meeting_id, args.content)
+        print("Meeting transcript saved.")
+        return
+
+    if args.command == "summarize-meeting":
+        note_id = services.meeting_notes.summarize_meeting(args.meeting_id)
+        print(f"Created meeting note {note_id}.")
+        return
+
+    if args.command == "extract-meeting-tasks":
+        task_ids = services.tasks.extract_tasks_from_meeting(args.meeting_id)
         print(f"Extracted {len(task_ids)} tasks.")
         return
 

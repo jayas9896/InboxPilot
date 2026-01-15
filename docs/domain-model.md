@@ -20,6 +20,9 @@
 - id, provider_event_id, title, participants, start_time, end_time
 - transcript_ref (optional)
 
+## MeetingTranscript
+- meeting_id, content
+
 ## Category
 - id, name, description (optional), template_tag (optional)
 - user_id or tenant_id for future multi-user

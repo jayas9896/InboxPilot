@@ -129,6 +129,27 @@ class TemplateLoadRequest(BaseModel):
     template_name: str
 
 
+class MeetingTranscriptRequest(BaseModel):
+    """Summary: Request payload for meeting transcript storage.
+
+    Importance: Allows clients to submit transcripts for summarization.
+    Alternatives: Store transcripts only via file uploads.
+    """
+
+    meeting_id: int
+    content: str
+
+
+class MeetingSummaryRequest(BaseModel):
+    """Summary: Request payload for meeting summary generation.
+
+    Importance: Allows clients to request summaries on demand.
+    Alternatives: Summarize transcripts automatically on ingestion.
+    """
+
+    meeting_id: int
+
+
 def create_app(config: AppConfig) -> FastAPI:
     """Summary: Create a FastAPI app wired to InboxPilot services.
 
@@ -356,6 +377,39 @@ def create_app(config: AppConfig) -> FastAPI:
 
         task_ids = services.tasks.extract_tasks_from_message(payload.message_id)
         return {"created": len(task_ids)}
+
+    @app.post("/tasks/extract-meeting")
+    def extract_meeting_tasks(payload: MeetingSummaryRequest) -> dict[str, Any]:
+        """Summary: Extract tasks from a meeting transcript.
+
+        Importance: Captures meeting follow-ups in a structured format.
+        Alternatives: Require manual task entry for meetings.
+        """
+
+        task_ids = services.tasks.extract_tasks_from_meeting(payload.meeting_id)
+        return {"created": len(task_ids)}
+
+    @app.post("/meetings/transcript")
+    def add_meeting_transcript(payload: MeetingTranscriptRequest) -> dict[str, Any]:
+        """Summary: Store a meeting transcript for summarization.
+
+        Importance: Enables AI summaries and task extraction for meetings.
+        Alternatives: Store transcripts only as attachments.
+        """
+
+        services.meeting_notes.add_transcript(payload.meeting_id, payload.content)
+        return {"status": "ok"}
+
+    @app.post("/meetings/summary")
+    def summarize_meeting(payload: MeetingSummaryRequest) -> dict[str, Any]:
+        """Summary: Summarize a meeting transcript into a note.
+
+        Importance: Produces readable meeting notes for follow-ups.
+        Alternatives: Require manual note creation for meetings.
+        """
+
+        note_id = services.meeting_notes.summarize_meeting(payload.meeting_id)
+        return {"note_id": note_id}
 
     return app
 

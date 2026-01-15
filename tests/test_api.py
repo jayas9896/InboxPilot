@@ -106,3 +106,41 @@ def test_api_tasks(tmp_path: Path) -> None:
     list_response = client.get("/tasks", params={"parent_type": "message", "parent_id": 1})
     assert list_response.status_code == 200
     assert list_response.json()[0]["description"] == "Follow up"
+
+
+def test_api_meeting_summary(tmp_path: Path) -> None:
+    """Summary: Verify meeting transcript and summary endpoints.
+
+    Importance: Ensures meeting notes can be generated via HTTP.
+    Alternatives: Summarize meetings only via CLI.
+    """
+
+    fixture = tmp_path / "mock_meetings.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_event_id": "meet-1",
+            "title": "Sync",
+            "participants": "a@example.com",
+            "start_time": "2026-01-15T10:00:00",
+            "end_time": "2026-01-15T10:30:00",
+            "transcript_ref": null
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    ingest_response = client.post(
+        "/ingest/calendar-mock", json={"limit": 1, "fixture_path": str(fixture)}
+    )
+    assert ingest_response.status_code == 200
+    transcript_response = client.post(
+        "/meetings/transcript",
+        json={"meeting_id": 1, "content": "We agreed to ship on Friday."},
+    )
+    assert transcript_response.status_code == 200
+    summary_response = client.post("/meetings/summary", json={"meeting_id": 1})
+    assert summary_response.status_code == 200

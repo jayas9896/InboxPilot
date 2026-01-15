@@ -16,6 +16,7 @@ from inboxpilot.services import (
     ChatService,
     IngestionService,
     MeetingService,
+    MeetingSummaryService,
     TaskService,
 )
 from inboxpilot.storage.sqlite_store import SqliteStore
@@ -34,6 +35,7 @@ class AppServices:
     categories: CategoryService
     chat: ChatService
     tasks: TaskService
+    meeting_notes: MeetingSummaryService
     store: SqliteStore
 
 
@@ -69,11 +71,18 @@ def build_services(config: AppConfig) -> AppServices:
         provider_name=config.ai_provider,
         model_name=model_name,
     )
+    meeting_notes = MeetingSummaryService(
+        store=store,
+        ai_provider=ai_provider,
+        provider_name=config.ai_provider,
+        model_name=model_name,
+    )
     return AppServices(
         ingestion=ingestion,
         meetings=meetings,
         categories=categories,
         chat=chat,
         tasks=tasks,
+        meeting_notes=meeting_notes,
         store=store,
     )

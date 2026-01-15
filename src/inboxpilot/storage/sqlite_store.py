@@ -80,6 +80,18 @@ class StoredTask:
     due_date: str | None
 
 
+@dataclass(frozen=True)
+class StoredMeetingTranscript:
+    """Summary: Meeting transcript record.
+
+    Importance: Stores transcript text for summarization and task extraction.
+    Alternatives: Store transcripts in external object storage only.
+    """
+
+    meeting_id: int
+    content: str
+
+
 class SqliteStore:
     """Summary: SQLite-backed storage for InboxPilot.
 
@@ -181,6 +193,14 @@ class SqliteStore:
                     description TEXT NOT NULL,
                     status TEXT NOT NULL,
                     due_date TEXT
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS meeting_transcripts (
+                    meeting_id INTEGER PRIMARY KEY,
+                    content TEXT NOT NULL
                 )
                 """
             )
@@ -489,6 +509,41 @@ class SqliteStore:
             )
             rows = cursor.fetchall()
         return [StoredTask(*row) for row in rows]
+
+    def save_meeting_transcript(self, meeting_id: int, content: str) -> None:
+        """Summary: Save or update a meeting transcript.
+
+        Importance: Enables AI summaries and task extraction from meetings.
+        Alternatives: Store transcripts as notes only.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                INSERT INTO meeting_transcripts (meeting_id, content)
+                VALUES (?, ?)
+                ON CONFLICT(meeting_id) DO UPDATE SET content = excluded.content
+                """,
+                (meeting_id, content),
+            )
+            connection.commit()
+
+    def get_meeting_transcript(self, meeting_id: int) -> StoredMeetingTranscript | None:
+        """Summary: Retrieve a stored meeting transcript.
+
+        Importance: Supplies transcript text for summarization workflows.
+        Alternatives: Load transcripts from external storage.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT meeting_id, content FROM meeting_transcripts WHERE meeting_id = ?",
+                (meeting_id,),
+            )
+            row = cursor.fetchone()
+        return StoredMeetingTranscript(*row) if row else None
 
     def get_message(self, message_id: int) -> StoredMessage | None:
         """Summary: Retrieve a message by database ID.

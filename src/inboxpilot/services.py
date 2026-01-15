@@ -287,3 +287,96 @@ class TaskService:
             if cleaned:
                 task_ids.append(self.add_task("message", message_id, cleaned))
         return task_ids
+
+    def extract_tasks_from_meeting(self, meeting_id: int) -> list[int]:
+        """Summary: Extract action items from a meeting transcript.
+
+        Importance: Captures meeting follow-ups as structured tasks.
+        Alternatives: Require manual task entry for meetings.
+        """
+
+        transcript = self.store.get_meeting_transcript(meeting_id)
+        if not transcript:
+            raise ValueError(f"Meeting transcript {meeting_id} not found")
+        prompt = (
+            "Extract action items from the meeting transcript. Respond with one task per line.\n\n"
+            f"Transcript:\n{transcript.content}\n"
+        )
+        response_text, latency_ms = self.ai_provider.generate_text(prompt, purpose="extract_tasks")
+        request = AiRequest(
+            provider=self.provider_name,
+            model=self.model_name,
+            prompt=prompt,
+            purpose="extract_tasks",
+            timestamp=datetime.utcnow(),
+        )
+        request_id = self.store.log_ai_request(request)
+        response = AiResponse(
+            request_id=request_id,
+            response_text=response_text,
+            latency_ms=latency_ms,
+            token_estimate=estimate_tokens(response_text),
+        )
+        self.store.log_ai_response(response)
+        task_ids: list[int] = []
+        for line in response_text.splitlines():
+            cleaned = line.strip().lstrip("-").strip()
+            if cleaned:
+                task_ids.append(self.add_task("meeting", meeting_id, cleaned))
+        return task_ids
+
+
+@dataclass(frozen=True)
+class MeetingSummaryService:
+    """Summary: Handles meeting transcript storage and summarization.
+
+    Importance: Produces meeting notes and highlights from transcripts.
+    Alternatives: Store only raw transcripts without summaries.
+    """
+
+    store: SqliteStore
+    ai_provider: AiProvider
+    provider_name: str
+    model_name: str
+
+    def add_transcript(self, meeting_id: int, content: str) -> None:
+        """Summary: Persist a meeting transcript.
+
+        Importance: Enables downstream summarization and task extraction.
+        Alternatives: Use external storage for transcripts only.
+        """
+
+        self.store.save_meeting_transcript(meeting_id, content)
+
+    def summarize_meeting(self, meeting_id: int) -> int:
+        """Summary: Summarize a meeting transcript into a note.
+
+        Importance: Produces concise meeting notes for follow-ups.
+        Alternatives: Require manual note creation after meetings.
+        """
+
+        transcript = self.store.get_meeting_transcript(meeting_id)
+        if not transcript:
+            raise ValueError(f"Meeting transcript {meeting_id} not found")
+        prompt = (
+            "Summarize the meeting transcript with key decisions and next steps.\n\n"
+            f"Transcript:\n{transcript.content}\n"
+        )
+        response_text, latency_ms = self.ai_provider.generate_text(prompt, purpose="meeting_summary")
+        request = AiRequest(
+            provider=self.provider_name,
+            model=self.model_name,
+            prompt=prompt,
+            purpose="meeting_summary",
+            timestamp=datetime.utcnow(),
+        )
+        request_id = self.store.log_ai_request(request)
+        response = AiResponse(
+            request_id=request_id,
+            response_text=response_text,
+            latency_ms=latency_ms,
+            token_estimate=estimate_tokens(response_text),
+        )
+        self.store.log_ai_response(response)
+        note = Note(parent_type="meeting", parent_id=meeting_id, content=response_text)
+        return self.store.add_note(note)

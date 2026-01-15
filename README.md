@@ -35,6 +35,9 @@ python -m inboxpilot.cli draft 1 "Thank them and ask for availability"
 python -m inboxpilot.cli add-task 1 "Send revised deck"
 python -m inboxpilot.cli list-tasks 1
 python -m inboxpilot.cli extract-tasks 1
+python -m inboxpilot.cli add-meeting-transcript 1 "We agreed to ship on Friday."
+python -m inboxpilot.cli summarize-meeting 1
+python -m inboxpilot.cli extract-meeting-tasks 1
 ```
 
 ### Run the API (FastAPI)
