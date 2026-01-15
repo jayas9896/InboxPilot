@@ -61,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
     assign_category.add_argument("message_id", type=int)
     assign_category.add_argument("category_id", type=int)
 
+    suggest_categories = subparsers.add_parser(
+        "suggest-categories", help="Suggest categories using AI"
+    )
+    suggest_categories.add_argument("message_id", type=int)
+
     chat = subparsers.add_parser("chat", help="Ask a question about your inbox")
     chat.add_argument("query", type=str)
 
@@ -174,6 +179,15 @@ def run_cli() -> None:
     if args.command == "assign-category":
         services.categories.assign_category(args.message_id, args.category_id)
         print("Category assigned.")
+        return
+
+    if args.command == "suggest-categories":
+        suggestions = services.categories.suggest_categories_ai(args.message_id)
+        if not suggestions:
+            print("No suggestions.")
+            return
+        for category in suggestions:
+            print(f"{category.name} - {category.description or ''}")
         return
 
     if args.command == "chat":

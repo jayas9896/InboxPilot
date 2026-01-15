@@ -51,7 +51,13 @@ def build_services(config: AppConfig) -> AppServices:
     ai_provider = AiProviderFactory(config).build()
     classifier = RuleBasedClassifier()
     ingestion = IngestionService(store)
-    categories = CategoryService(store=store, classifier=classifier)
+    categories = CategoryService(
+        store=store,
+        classifier=classifier,
+        ai_provider=ai_provider,
+        provider_name=config.ai_provider,
+        model_name=model_name,
+    )
     meetings = MeetingService(store=store)
     if config.ai_provider == "openai":
         model_name = config.openai_model

@@ -89,6 +89,43 @@ def test_api_categories_and_templates(tmp_path: Path) -> None:
     assert templates_response.json()
 
 
+def test_api_category_suggestions(tmp_path: Path) -> None:
+    """Summary: Verify category suggestion endpoint responds.
+
+    Importance: Ensures AI/category suggestion workflow is exposed via HTTP.
+    Alternatives: Use CLI-only suggestions.
+    """
+
+    fixture = tmp_path / "mock_messages.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_message_id": "api-2",
+            "subject": "Interview schedule",
+            "sender": "from@example.com",
+            "recipients": "to@example.com",
+            "timestamp": "2026-01-15T10:00:00",
+            "snippet": "Interview schedule",
+            "body": "Interview schedule for next week."
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    ingest_response = client.post(
+        "/ingest/mock", json={"limit": 1, "fixture_path": str(fixture)}
+    )
+    assert ingest_response.status_code == 200
+    category_response = client.post("/categories", json={"name": "Interview"})
+    assert category_response.status_code == 200
+    suggest_response = client.post("/categories/suggest", json={"message_id": 1})
+    assert suggest_response.status_code == 200
+    assert suggest_response.json()
+
+
 def test_api_tasks(tmp_path: Path) -> None:
     """Summary: Verify task endpoints work over HTTP.
 

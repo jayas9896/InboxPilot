@@ -74,6 +74,9 @@ class CategoryService:
 
     store: SqliteStore
     classifier: RuleBasedClassifier
+    ai_provider: AiProvider
+    provider_name: str
+    model_name: str
 
     def create_category(self, name: str, description: str | None) -> int:
         """Summary: Create a new category record.
@@ -97,6 +100,68 @@ class CategoryService:
         ]
         return self.classifier.suggest(message, categories)
 
+    def suggest_categories_ai(self, message_id: int) -> list[Category]:
+        """Summary: Suggest categories using AI for a stored message.
+
+        Importance: Provides a flexible categorization option beyond keyword rules.
+        Alternatives: Use only deterministic rules or manual assignment.
+        """
+
+        message = self.store.get_message(message_id)
+        if not message:
+            raise ValueError(f"Message {message_id} not found")
+        stored_categories = self.store.list_categories()
+        categories = [
+            Category(name=item.name, description=item.description) for item in stored_categories
+        ]
+        if not categories:
+            return []
+        category_list = "\n".join(f"- {category.name}" for category in categories)
+        prompt = (
+            "Select the most relevant categories for the email. "
+            "Respond with one category name per line from the provided list.\n\n"
+            f"Available categories:\n{category_list}\n\n"
+            f"Email subject: {message.subject}\n"
+            f"Email body: {message.body}\n"
+        )
+        response_text, latency_ms = self.ai_provider.generate_text(
+            prompt, purpose="category_suggestion"
+        )
+        request = AiRequest(
+            provider=self.provider_name,
+            model=self.model_name,
+            prompt=prompt,
+            purpose="category_suggestion",
+            timestamp=datetime.utcnow(),
+        )
+        request_id = self.store.log_ai_request(request)
+        response = AiResponse(
+            request_id=request_id,
+            response_text=response_text,
+            latency_ms=latency_ms,
+            token_estimate=estimate_tokens(response_text),
+        )
+        self.store.log_ai_response(response)
+        normalized = {category.name.lower(): category for category in categories}
+        suggestions: list[Category] = []
+        for line in response_text.splitlines():
+            cleaned = line.strip().lstrip("-").strip().lower()
+            if cleaned in normalized:
+                suggestions.append(normalized[cleaned])
+        if suggestions:
+            return suggestions
+        return self.classifier.suggest(
+            Message(
+                provider_message_id=message.provider_message_id,
+                subject=message.subject,
+                sender=message.sender,
+                recipients=message.recipients,
+                timestamp=datetime.fromisoformat(message.timestamp),
+                snippet=message.snippet,
+                body=message.body,
+            ),
+            categories,
+        )
     def assign_category(self, message_id: int, category_id: int) -> None:
         """Summary: Assign a category to a stored message.
 

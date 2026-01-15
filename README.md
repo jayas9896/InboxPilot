@@ -28,6 +28,7 @@ python -m inboxpilot.cli ingest-mock --limit 3
 python -m inboxpilot.cli list-messages
 python -m inboxpilot.cli add-category Recruiting --description "Hiring workflow"
 python -m inboxpilot.cli assign-category 1 1
+python -m inboxpilot.cli suggest-categories 1
 python -m inboxpilot.cli ingest-calendar-mock --limit 2
 python -m inboxpilot.cli list-meetings
 python -m inboxpilot.cli chat "What emails need follow up?"
@@ -82,8 +83,9 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 ## Categories
 - Categories are first-class objects stored in SQLite.
 - You can create categories with or without descriptions.
-- Manual assignment is supported via the CLI. AI-based suggestions are planned for future iterations.
+- Manual assignment is supported via the CLI, and AI-based suggestions are available.
 - Starter templates are available with `list-templates` and `load-template`.
+- AI-based suggestions are available via `suggest-categories`.
 
 ## Chat Assistant
 - `chat` searches stored messages and uses the AI abstraction to answer questions.

@@ -63,6 +63,16 @@ class CategoryAssignRequest(BaseModel):
     category_id: int
 
 
+class CategorySuggestRequest(BaseModel):
+    """Summary: Request payload for category suggestions.
+
+    Importance: Enables AI-based category suggestions over HTTP.
+    Alternatives: Use only rule-based suggestions or manual assignment.
+    """
+
+    message_id: int
+
+
 class ChatRequest(BaseModel):
     """Summary: Request payload for chat queries.
 
@@ -278,6 +288,20 @@ def create_app(config: AppConfig) -> FastAPI:
 
         services.categories.assign_category(payload.message_id, payload.category_id)
         return {"status": "ok"}
+
+    @app.post("/categories/suggest")
+    def suggest_categories(payload: CategorySuggestRequest) -> list[dict[str, Any]]:
+        """Summary: Suggest categories for a stored message.
+
+        Importance: Provides AI-driven suggestions for inbox organization.
+        Alternatives: Use only manual or rule-based categorization.
+        """
+
+        suggestions = services.categories.suggest_categories_ai(payload.message_id)
+        return [
+            {"name": category.name, "description": category.description}
+            for category in suggestions
+        ]
 
     @app.get("/templates")
     def list_category_templates() -> list[dict[str, Any]]:
