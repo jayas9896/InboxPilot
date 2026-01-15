@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from inboxpilot.app import build_services
@@ -169,6 +170,19 @@ def create_app(config: AppConfig) -> FastAPI:
 
     app = FastAPI(title="InboxPilot API", version="0.1.0")
     services = build_services(config)
+
+    @app.get("/", response_class=HTMLResponse)
+    def landing() -> str:
+        """Summary: Serve the local web dashboard.
+
+        Importance: Provides a simple UI for the MVP without extra tooling.
+        Alternatives: Build a separate frontend app served by a web server.
+        """
+
+        html_path = Path("web/index.html")
+        if not html_path.exists():
+            raise HTTPException(status_code=404, detail="Dashboard not found")
+        return html_path.read_text(encoding="utf-8")
 
     @app.get("/health")
     def health() -> dict[str, str]:

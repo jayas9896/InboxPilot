@@ -6,6 +6,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 ## Core Components
 - Client Interface (CLI/Web): Chat-style entry point for search, drafts, and explanations.
 - HTTP API: FastAPI layer for UI clients and integrations.
+- Web Dashboard: Static HTML interface served by the API for local use.
 - Email Integration: Read-only connectors (IMAP or provider APIs) that ingest metadata and message bodies.
 - Calendar Integration: Read-only connectors that ingest meetings, participants, and transcripts when available.
 - Category System: First-class category model, templates, and assignment logic (manual and AI-assisted).

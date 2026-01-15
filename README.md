@@ -52,6 +52,8 @@ Start the server:
 uvicorn inboxpilot.api:app --host 127.0.0.1 --port 8000
 ```
 
+Open the local dashboard at `http://127.0.0.1:8000/`.
+
 Example requests:
 ```
 curl -X POST http://127.0.0.1:8000/ingest/mock -H "Content-Type: application/json" -d "{\"limit\":3}"

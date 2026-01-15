@@ -9,3 +9,4 @@ CL-0006 | FastAPI HTTP layer | 2026-01-15 | Added API endpoints, config updates,
 CL-0007 | Tasks and extraction | 2026-01-15 | Added task storage, AI extraction, and CLI/API support.
 CL-0008 | Meeting transcripts and summaries | 2026-01-15 | Added meeting transcript storage, summaries, and task extraction.
 CL-0009 | AI category suggestions | 2026-01-15 | Added AI-based category suggestions with CLI/API support.
+CL-0010 | Web dashboard | 2026-01-15 | Added a static UI served by the FastAPI app.
