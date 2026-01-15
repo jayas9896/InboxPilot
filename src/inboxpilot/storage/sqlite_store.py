@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note
+from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note, Task
 
 
 @dataclass(frozen=True)
@@ -62,6 +62,22 @@ class StoredMeeting:
     start_time: str
     end_time: str
     transcript_ref: str | None
+
+
+@dataclass(frozen=True)
+class StoredTask:
+    """Summary: Task record with database identifier.
+
+    Importance: Allows tracking action items linked to messages or meetings.
+    Alternatives: Store tasks as notes or free-form text only.
+    """
+
+    id: int
+    parent_type: str
+    parent_id: int
+    description: str
+    status: str
+    due_date: str | None
 
 
 class SqliteStore:
@@ -153,6 +169,18 @@ class SqliteStore:
                     prompt TEXT NOT NULL,
                     purpose TEXT NOT NULL,
                     timestamp TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    parent_type TEXT NOT NULL,
+                    parent_id INTEGER NOT NULL,
+                    description TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    due_date TEXT
                 )
                 """
             )
@@ -420,6 +448,67 @@ class SqliteStore:
             )
             rows = cursor.fetchall()
         return [Note(*row) for row in rows]
+
+    def add_task(self, task: Task) -> int:
+        """Summary: Persist a task linked to a message or meeting.
+
+        Importance: Tracks action items for follow-up workflows.
+        Alternatives: Store tasks in a separate task manager.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                INSERT INTO tasks (parent_type, parent_id, description, status, due_date)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (task.parent_type, task.parent_id, task.description, task.status, task.due_date),
+            )
+            task_id = cursor.lastrowid
+            connection.commit()
+        return int(task_id)
+
+    def list_tasks(self, parent_type: str, parent_id: int) -> list[StoredTask]:
+        """Summary: Retrieve tasks for a message or meeting.
+
+        Importance: Supports reviewing action items derived from communications.
+        Alternatives: Store tasks as notes without structured fields.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT id, parent_type, parent_id, description, status, due_date
+                FROM tasks
+                WHERE parent_type = ? AND parent_id = ?
+                ORDER BY id ASC
+                """,
+                (parent_type, parent_id),
+            )
+            rows = cursor.fetchall()
+        return [StoredTask(*row) for row in rows]
+
+    def get_message(self, message_id: int) -> StoredMessage | None:
+        """Summary: Retrieve a message by database ID.
+
+        Importance: Supports task extraction and draft workflows.
+        Alternatives: Filter messages in memory after listing all.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT id, provider_message_id, subject, sender, recipients, timestamp, snippet, body
+                FROM messages
+                WHERE id = ?
+                """,
+                (message_id,),
+            )
+            row = cursor.fetchone()
+        return StoredMessage(*row) if row else None
 
     def log_ai_request(self, request: AiRequest) -> int:
         """Summary: Persist an AI request for auditing.

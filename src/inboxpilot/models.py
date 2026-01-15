@@ -69,6 +69,21 @@ class Note:
 
 
 @dataclass(frozen=True)
+class Task:
+    """Summary: Represents an action item linked to a message or meeting.
+
+    Importance: Captures follow-ups and assigned work extracted from communications.
+    Alternatives: Store tasks in an external task manager only.
+    """
+
+    parent_type: str
+    parent_id: int
+    description: str
+    status: str = "open"
+    due_date: str | None = None
+
+
+@dataclass(frozen=True)
 class AiRequest:
     """Summary: Records an AI request for audit and traceability.
 

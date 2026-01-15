@@ -87,3 +87,22 @@ def test_api_categories_and_templates(tmp_path: Path) -> None:
     templates_response = client.get("/templates")
     assert templates_response.status_code == 200
     assert templates_response.json()
+
+
+def test_api_tasks(tmp_path: Path) -> None:
+    """Summary: Verify task endpoints work over HTTP.
+
+    Importance: Ensures action items can be managed via the API.
+    Alternatives: Use CLI-only task workflows.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    task_response = client.post(
+        "/tasks",
+        json={"parent_type": "message", "parent_id": 1, "description": "Follow up"},
+    )
+    assert task_response.status_code == 200
+    list_response = client.get("/tasks", params={"parent_type": "message", "parent_id": 1})
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["description"] == "Follow up"

@@ -32,6 +32,9 @@ python -m inboxpilot.cli ingest-calendar-mock --limit 2
 python -m inboxpilot.cli list-meetings
 python -m inboxpilot.cli chat "What emails need follow up?"
 python -m inboxpilot.cli draft 1 "Thank them and ask for availability"
+python -m inboxpilot.cli add-task 1 "Send revised deck"
+python -m inboxpilot.cli list-tasks 1
+python -m inboxpilot.cli extract-tasks 1
 ```
 
 ### Run the API (FastAPI)
@@ -82,6 +85,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 ## Chat Assistant
 - `chat` searches stored messages and uses the AI abstraction to answer questions.
 - `draft` creates reply drafts but never sends emails.
+- `extract-tasks` extracts action items from a message and stores them as tasks.
 
 ## Repository Docs
 - Architecture: `docs/architecture.md`

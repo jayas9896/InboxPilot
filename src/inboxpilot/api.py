@@ -97,6 +97,28 @@ class NoteCreateRequest(BaseModel):
     content: str
 
 
+class TaskCreateRequest(BaseModel):
+    """Summary: Request payload for task creation.
+
+    Importance: Enables explicit task creation from API clients.
+    Alternatives: Only allow AI-extracted tasks.
+    """
+
+    parent_type: str
+    parent_id: int
+    description: str
+
+
+class TaskExtractRequest(BaseModel):
+    """Summary: Request payload for task extraction.
+
+    Importance: Allows clients to trigger AI action item extraction.
+    Alternatives: Provide extraction only in the CLI.
+    """
+
+    message_id: int
+
+
 class TemplateLoadRequest(BaseModel):
     """Summary: Request payload for template loading.
 
@@ -292,6 +314,48 @@ def create_app(config: AppConfig) -> FastAPI:
 
         note_id = services.chat.add_note(payload.parent_type, payload.parent_id, payload.content)
         return {"id": note_id}
+
+    @app.post("/tasks")
+    def add_task(payload: TaskCreateRequest) -> dict[str, Any]:
+        """Summary: Create a task for a message or meeting.
+
+        Importance: Allows clients to capture action items explicitly.
+        Alternatives: Rely only on AI extraction.
+        """
+
+        task_id = services.tasks.add_task(payload.parent_type, payload.parent_id, payload.description)
+        return {"id": task_id}
+
+    @app.get("/tasks")
+    def list_tasks(parent_type: str, parent_id: int) -> list[dict[str, Any]]:
+        """Summary: List tasks for a message or meeting.
+
+        Importance: Enables action-item review in client apps.
+        Alternatives: Return tasks only when requested by AI.
+        """
+
+        return [
+            {
+                "id": task.id,
+                "parent_type": task.parent_type,
+                "parent_id": task.parent_id,
+                "description": task.description,
+                "status": task.status,
+                "due_date": task.due_date,
+            }
+            for task in services.tasks.list_tasks(parent_type, parent_id)
+        ]
+
+    @app.post("/tasks/extract")
+    def extract_tasks(payload: TaskExtractRequest) -> dict[str, Any]:
+        """Summary: Extract tasks from a message using AI.
+
+        Importance: Captures follow-ups in a structured way.
+        Alternatives: Require manual task entry for each action item.
+        """
+
+        task_ids = services.tasks.extract_tasks_from_message(payload.message_id)
+        return {"created": len(task_ids)}
 
     return app
 

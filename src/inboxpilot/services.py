@@ -11,8 +11,8 @@ from datetime import datetime
 
 from inboxpilot.ai import AiProvider, estimate_tokens
 from inboxpilot.classifier import RuleBasedClassifier
-from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note
-from inboxpilot.storage.sqlite_store import SqliteStore, StoredMeeting, StoredMessage
+from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note, Task
+from inboxpilot.storage.sqlite_store import SqliteStore, StoredMeeting, StoredMessage, StoredTask
 
 
 @dataclass(frozen=True)
@@ -174,10 +174,10 @@ class ChatService:
         Alternatives: Search by provider message ID instead.
         """
 
-        messages = [message for message in self.store.list_messages(200) if message.id == message_id]
-        if not messages:
+        message = self.store.get_message(message_id)
+        if not message:
             raise ValueError(f"Message {message_id} not found")
-        return messages[0]
+        return message
 
     def _format_message(self, message: StoredMessage) -> str:
         """Summary: Format a stored message for AI context.
@@ -215,3 +215,75 @@ class ChatService:
             token_estimate=estimate_tokens(response_text),
         )
         self.store.log_ai_response(response)
+
+
+@dataclass(frozen=True)
+class TaskService:
+    """Summary: Manages action item storage and extraction.
+
+    Importance: Captures follow-ups from emails and meetings as structured tasks.
+    Alternatives: Store action items as unstructured notes only.
+    """
+
+    store: SqliteStore
+    ai_provider: AiProvider
+    provider_name: str
+    model_name: str
+
+    def add_task(self, parent_type: str, parent_id: int, description: str) -> int:
+        """Summary: Create a task linked to a message or meeting.
+
+        Importance: Ensures action items are tracked in structured form.
+        Alternatives: Keep tasks as plain text notes without structure.
+        """
+
+        task = Task(parent_type=parent_type, parent_id=parent_id, description=description)
+        return self.store.add_task(task)
+
+    def list_tasks(self, parent_type: str, parent_id: int) -> list[StoredTask]:
+        """Summary: List tasks for a message or meeting.
+
+        Importance: Allows users to review extracted or added action items.
+        Alternatives: Use external task systems for tracking.
+        """
+
+        return self.store.list_tasks(parent_type, parent_id)
+
+    def extract_tasks_from_message(self, message_id: int) -> list[int]:
+        """Summary: Extract action items from a message using AI.
+
+        Importance: Automates follow-up capture while staying draft-first.
+        Alternatives: Require manual task entry for each action item.
+        """
+
+        message = self.store.get_message(message_id)
+        if not message:
+            raise ValueError(f"Message {message_id} not found")
+        prompt = (
+            "Extract action items from the email. Respond with one task per line.\n\n"
+            f"Subject: {message.subject}\n"
+            f"From: {message.sender}\n"
+            f"Body: {message.body}\n"
+        )
+        response_text, latency_ms = self.ai_provider.generate_text(prompt, purpose="extract_tasks")
+        request = AiRequest(
+            provider=self.provider_name,
+            model=self.model_name,
+            prompt=prompt,
+            purpose="extract_tasks",
+            timestamp=datetime.utcnow(),
+        )
+        request_id = self.store.log_ai_request(request)
+        response = AiResponse(
+            request_id=request_id,
+            response_text=response_text,
+            latency_ms=latency_ms,
+            token_estimate=estimate_tokens(response_text),
+        )
+        self.store.log_ai_response(response)
+        task_ids: list[int] = []
+        for line in response_text.splitlines():
+            cleaned = line.strip().lstrip("-").strip()
+            if cleaned:
+                task_ids.append(self.add_task("message", message_id, cleaned))
+        return task_ids

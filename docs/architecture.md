@@ -9,6 +9,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - Email Integration: Read-only connectors (IMAP or provider APIs) that ingest metadata and message bodies.
 - Calendar Integration: Read-only connectors that ingest meetings, participants, and transcripts when available.
 - Category System: First-class category model, templates, and assignment logic (manual and AI-assisted).
+- Task & Follow-up System: Structured action items linked to messages or meetings.
 - AI Abstraction Layer: A provider interface that routes to local or cloud LLMs without vendor-specific coupling.
 - Storage Layer: Local SQL database with room for later migration to managed SQL and object storage.
 - Background Workers (optional): Periodic ingestion, classification, and summarization tasks.

@@ -72,6 +72,18 @@ def build_parser() -> argparse.ArgumentParser:
     note.add_argument("message_id", type=int)
     note.add_argument("content", type=str)
 
+    add_task = subparsers.add_parser("add-task", help="Add a task to a message")
+    add_task.add_argument("message_id", type=int)
+    add_task.add_argument("description", type=str)
+
+    list_tasks = subparsers.add_parser("list-tasks", help="List tasks for a message")
+    list_tasks.add_argument("message_id", type=int)
+
+    extract_tasks = subparsers.add_parser(
+        "extract-tasks", help="Extract tasks from a message using AI"
+    )
+    extract_tasks.add_argument("message_id", type=int)
+
     return parser
 
 
@@ -163,6 +175,22 @@ def run_cli() -> None:
     if args.command == "add-note":
         note_id = services.chat.add_note("message", args.message_id, args.content)
         print(f"Added note {note_id}.")
+        return
+
+    if args.command == "add-task":
+        task_id = services.tasks.add_task("message", args.message_id, args.description)
+        print(f"Added task {task_id}.")
+        return
+
+    if args.command == "list-tasks":
+        tasks = services.tasks.list_tasks("message", args.message_id)
+        for task in tasks:
+            print(f"{task.id}: {task.description} [{task.status}]")
+        return
+
+    if args.command == "extract-tasks":
+        task_ids = services.tasks.extract_tasks_from_message(args.message_id)
+        print(f"Extracted {len(task_ids)} tasks.")
         return
 
 

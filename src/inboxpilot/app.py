@@ -11,7 +11,13 @@ from dataclasses import dataclass
 from inboxpilot.ai import AiProviderFactory
 from inboxpilot.classifier import RuleBasedClassifier
 from inboxpilot.config import AppConfig
-from inboxpilot.services import CategoryService, ChatService, IngestionService, MeetingService
+from inboxpilot.services import (
+    CategoryService,
+    ChatService,
+    IngestionService,
+    MeetingService,
+    TaskService,
+)
 from inboxpilot.storage.sqlite_store import SqliteStore
 
 
@@ -27,6 +33,7 @@ class AppServices:
     meetings: MeetingService
     categories: CategoryService
     chat: ChatService
+    tasks: TaskService
     store: SqliteStore
 
 
@@ -56,10 +63,17 @@ def build_services(config: AppConfig) -> AppServices:
         provider_name=config.ai_provider,
         model_name=model_name,
     )
+    tasks = TaskService(
+        store=store,
+        ai_provider=ai_provider,
+        provider_name=config.ai_provider,
+        model_name=model_name,
+    )
     return AppServices(
         ingestion=ingestion,
         meetings=meetings,
         categories=categories,
         chat=chat,
+        tasks=tasks,
         store=store,
     )
