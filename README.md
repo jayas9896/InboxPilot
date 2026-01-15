@@ -34,6 +34,23 @@ python -m inboxpilot.cli chat "What emails need follow up?"
 python -m inboxpilot.cli draft 1 "Thank them and ask for availability"
 ```
 
+### Run the API (FastAPI)
+Install runtime dependencies:
+```
+pip install -r requirements.txt
+```
+
+Start the server:
+```
+uvicorn inboxpilot.api:app --host 127.0.0.1 --port 8000
+```
+
+Example requests:
+```
+curl -X POST http://127.0.0.1:8000/ingest/mock -H "Content-Type: application/json" -d "{\"limit\":3}"
+curl http://127.0.0.1:8000/messages
+```
+
 ### Run with IMAP (Read-only)
 Set environment variables:
 - `INBOXPILOT_IMAP_HOST`

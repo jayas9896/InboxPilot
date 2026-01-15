@@ -30,6 +30,8 @@ class AppConfig:
     imap_user: str | None
     imap_password: str | None
     imap_mailbox: str
+    api_host: str
+    api_port: int
 
     @staticmethod
     def from_env() -> "AppConfig":
@@ -52,6 +54,8 @@ class AppConfig:
             imap_user=os.getenv("INBOXPILOT_IMAP_USER") or defaults["imap_user"] or None,
             imap_password=os.getenv("INBOXPILOT_IMAP_PASSWORD") or defaults["imap_password"] or None,
             imap_mailbox=os.getenv("INBOXPILOT_IMAP_MAILBOX", defaults["imap_mailbox"]),
+            api_host=os.getenv("INBOXPILOT_API_HOST", defaults["api_host"]),
+            api_port=int(os.getenv("INBOXPILOT_API_PORT", defaults["api_port"])),
         )
 
 

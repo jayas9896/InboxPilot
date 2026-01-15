@@ -8,5 +8,7 @@
   "imap_host": "",
   "imap_user": "",
   "imap_password": "",
-  "imap_mailbox": "INBOX"
+  "imap_mailbox": "INBOX",
+  "api_host": "127.0.0.1",
+  "api_port": "8000"
 }

@@ -1,0 +1,299 @@
+"""Summary: FastAPI application for InboxPilot.
+
+Importance: Exposes HTTP endpoints for integrations and UI clients.
+Alternatives: Use a CLI-only workflow or a different web framework.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
+from inboxpilot.app import build_services
+from inboxpilot.calendar import MockCalendarProvider
+from inboxpilot.category_templates import list_templates, load_template
+from inboxpilot.config import AppConfig
+from inboxpilot.email import MockEmailProvider
+
+
+class IngestRequest(BaseModel):
+    """Summary: Request payload for mock email ingestion.
+
+    Importance: Keeps ingestion inputs explicit for API clients.
+    Alternatives: Use query parameters instead of JSON payloads.
+    """
+
+    limit: int = Field(default=5, ge=1, le=200)
+    fixture_path: str | None = None
+
+
+class MeetingIngestRequest(BaseModel):
+    """Summary: Request payload for mock meeting ingestion.
+
+    Importance: Allows controlled meeting ingestion via the API.
+    Alternatives: Use a static fixture path without overrides.
+    """
+
+    limit: int = Field(default=5, ge=1, le=200)
+    fixture_path: str | None = None
+
+
+class CategoryCreateRequest(BaseModel):
+    """Summary: Request payload for category creation.
+
+    Importance: Enables client-defined categories over HTTP.
+    Alternatives: Create categories only through the CLI.
+    """
+
+    name: str
+    description: str | None = None
+
+
+class CategoryAssignRequest(BaseModel):
+    """Summary: Request payload for assigning categories.
+
+    Importance: Connects messages to user-defined categories.
+    Alternatives: Assign categories in bulk using rules.
+    """
+
+    message_id: int
+    category_id: int
+
+
+class ChatRequest(BaseModel):
+    """Summary: Request payload for chat queries.
+
+    Importance: Provides the central chat workflow over HTTP.
+    Alternatives: Return raw search results without AI context.
+    """
+
+    query: str
+    limit: int = Field(default=3, ge=1, le=50)
+
+
+class DraftRequest(BaseModel):
+    """Summary: Request payload for drafting replies.
+
+    Importance: Keeps drafting explicit and user-controlled.
+    Alternatives: Autogenerate drafts without explicit request.
+    """
+
+    message_id: int
+    instructions: str
+
+
+class NoteCreateRequest(BaseModel):
+    """Summary: Request payload for note creation.
+
+    Importance: Stores follow-up context with messages or meetings.
+    Alternatives: Store notes in a separate note-taking app.
+    """
+
+    parent_type: str
+    parent_id: int
+    content: str
+
+
+class TemplateLoadRequest(BaseModel):
+    """Summary: Request payload for template loading.
+
+    Importance: Lets clients bootstrap categories quickly.
+    Alternatives: Require manual category creation.
+    """
+
+    template_name: str
+
+
+def create_app(config: AppConfig) -> FastAPI:
+    """Summary: Create a FastAPI app wired to InboxPilot services.
+
+    Importance: Ensures the API layer shares the same configuration and storage.
+    Alternatives: Instantiate services globally outside the factory.
+    """
+
+    app = FastAPI(title="InboxPilot API", version="0.1.0")
+    services = build_services(config)
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        """Summary: Health check endpoint.
+
+        Importance: Supports uptime checks in local and cloud deployments.
+        Alternatives: Use a metrics endpoint only.
+        """
+
+        return {"status": "ok"}
+
+    @app.post("/ingest/mock")
+    def ingest_mock(payload: IngestRequest) -> dict[str, Any]:
+        """Summary: Ingest mock email messages from a fixture.
+
+        Importance: Enables deterministic demos and integration tests.
+        Alternatives: Accept raw message payloads over the API.
+        """
+
+        fixture_path = Path(payload.fixture_path) if payload.fixture_path else Path("data/mock_messages.json")
+        if not fixture_path.exists():
+            raise HTTPException(status_code=404, detail="Fixture not found")
+        provider = MockEmailProvider(fixture_path)
+        messages = provider.fetch_recent(payload.limit)
+        ids = services.ingestion.ingest_messages(messages)
+        return {"ingested": len(ids)}
+
+    @app.post("/ingest/calendar-mock")
+    def ingest_calendar_mock(payload: MeetingIngestRequest) -> dict[str, Any]:
+        """Summary: Ingest mock meeting data from a fixture.
+
+        Importance: Enables meeting workflows without live providers.
+        Alternatives: Require live calendar integrations for all runs.
+        """
+
+        fixture_path = Path(payload.fixture_path) if payload.fixture_path else Path("data/mock_meetings.json")
+        if not fixture_path.exists():
+            raise HTTPException(status_code=404, detail="Fixture not found")
+        provider = MockCalendarProvider(fixture_path)
+        meetings = provider.fetch_upcoming(payload.limit)
+        ids = services.meetings.ingest_meetings(meetings)
+        return {"ingested": len(ids)}
+
+    @app.get("/messages")
+    def list_messages(limit: int = 10) -> list[dict[str, Any]]:
+        """Summary: List recent messages.
+
+        Importance: Provides data for UI clients and API consumers.
+        Alternatives: Return only message IDs with separate detail endpoints.
+        """
+
+        return [
+            {
+                "id": message.id,
+                "provider_message_id": message.provider_message_id,
+                "subject": message.subject,
+                "sender": message.sender,
+                "recipients": message.recipients,
+                "timestamp": message.timestamp,
+                "snippet": message.snippet,
+            }
+            for message in services.store.list_messages(limit)
+        ]
+
+    @app.get("/meetings")
+    def list_meetings(limit: int = 10) -> list[dict[str, Any]]:
+        """Summary: List recent meetings.
+
+        Importance: Supports meeting listings for clients and UI.
+        Alternatives: Provide meetings only after a specific search.
+        """
+
+        return [
+            {
+                "id": meeting.id,
+                "provider_event_id": meeting.provider_event_id,
+                "title": meeting.title,
+                "participants": meeting.participants,
+                "start_time": meeting.start_time,
+                "end_time": meeting.end_time,
+                "transcript_ref": meeting.transcript_ref,
+            }
+            for meeting in services.meetings.list_meetings(limit)
+        ]
+
+    @app.get("/categories")
+    def list_categories() -> list[dict[str, Any]]:
+        """Summary: List existing categories.
+
+        Importance: Enables category management from clients.
+        Alternatives: Cache categories in client state only.
+        """
+
+        return [
+            {"id": category.id, "name": category.name, "description": category.description}
+            for category in services.store.list_categories()
+        ]
+
+    @app.post("/categories")
+    def create_category(payload: CategoryCreateRequest) -> dict[str, Any]:
+        """Summary: Create a category.
+
+        Importance: Adds first-class user-defined organization.
+        Alternatives: Auto-create categories from AI suggestions only.
+        """
+
+        category_id = services.categories.create_category(payload.name, payload.description)
+        return {"id": category_id}
+
+    @app.post("/categories/assign")
+    def assign_category(payload: CategoryAssignRequest) -> dict[str, Any]:
+        """Summary: Assign a category to a message.
+
+        Importance: Links messages to organization labels.
+        Alternatives: Store category info directly on the message.
+        """
+
+        services.categories.assign_category(payload.message_id, payload.category_id)
+        return {"status": "ok"}
+
+    @app.get("/templates")
+    def list_category_templates() -> list[dict[str, Any]]:
+        """Summary: List available category templates.
+
+        Importance: Helps clients discover starter packs.
+        Alternatives: Maintain templates only in docs.
+        """
+
+        return [
+            {"name": template.name, "count": len(template.categories)}
+            for template in list_templates()
+        ]
+
+    @app.post("/templates/load")
+    def load_category_template(payload: TemplateLoadRequest) -> dict[str, Any]:
+        """Summary: Load a template pack into storage.
+
+        Importance: Speeds onboarding for common domains.
+        Alternatives: Require manual creation for every category.
+        """
+
+        created = load_template(services.store, payload.template_name)
+        return {"created": created}
+
+    @app.post("/chat")
+    def chat(payload: ChatRequest) -> dict[str, Any]:
+        """Summary: Answer a question using stored messages.
+
+        Importance: Provides the chat assistant experience over HTTP.
+        Alternatives: Return raw search results instead of AI summaries.
+        """
+
+        answer = services.chat.answer(payload.query, limit=payload.limit)
+        return {"answer": answer}
+
+    @app.post("/draft")
+    def draft(payload: DraftRequest) -> dict[str, Any]:
+        """Summary: Draft a reply to a message.
+
+        Importance: Keeps drafts explicit and user-controlled.
+        Alternatives: Autogenerate drafts without a user prompt.
+        """
+
+        draft_text = services.chat.draft_reply(payload.message_id, payload.instructions)
+        return {"draft": draft_text}
+
+    @app.post("/notes")
+    def add_note(payload: NoteCreateRequest) -> dict[str, Any]:
+        """Summary: Create a note for a message or meeting.
+
+        Importance: Stores user context and action items.
+        Alternatives: Store notes in a separate system.
+        """
+
+        note_id = services.chat.add_note(payload.parent_type, payload.parent_id, payload.content)
+        return {"id": note_id}
+
+    return app
+
+
+app = create_app(AppConfig.from_env())
