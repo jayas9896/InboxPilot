@@ -40,6 +40,22 @@ class Category:
 
 
 @dataclass(frozen=True)
+class Meeting:
+    """Summary: Represents a calendar meeting or event.
+
+    Importance: Enables meeting ingestion and note workflows alongside email.
+    Alternatives: Store meetings as raw calendar provider payloads.
+    """
+
+    provider_event_id: str
+    title: str
+    participants: str
+    start_time: datetime
+    end_time: datetime
+    transcript_ref: str | None = None
+
+
+@dataclass(frozen=True)
 class Note:
     """Summary: Represents a note linked to a message or meeting.
 

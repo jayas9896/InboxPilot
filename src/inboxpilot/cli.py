@@ -10,6 +10,8 @@ import argparse
 from pathlib import Path
 
 from inboxpilot.app import build_services
+from inboxpilot.calendar import MockCalendarProvider
+from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
 from inboxpilot.email import ImapEmailProvider, MockEmailProvider
 
@@ -33,14 +35,27 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_imap = subparsers.add_parser("ingest-imap", help="Ingest emails via IMAP")
     ingest_imap.add_argument("--limit", type=int, default=5)
 
+    ingest_calendar = subparsers.add_parser("ingest-calendar-mock", help="Ingest mock meetings")
+    ingest_calendar.add_argument("--limit", type=int, default=5)
+    ingest_calendar.add_argument(
+        "--fixture", type=str, default=str(Path("data") / "mock_meetings.json")
+    )
+
     add_category = subparsers.add_parser("add-category", help="Create a category")
     add_category.add_argument("name", type=str)
     add_category.add_argument("--description", type=str, default=None)
+
+    subparsers.add_parser("list-templates", help="List category templates")
+    load_templates = subparsers.add_parser("load-template", help="Load a category template")
+    load_templates.add_argument("template_name", type=str)
 
     subparsers.add_parser("list-categories", help="List categories")
 
     list_messages = subparsers.add_parser("list-messages", help="List messages")
     list_messages.add_argument("--limit", type=int, default=10)
+
+    list_meetings = subparsers.add_parser("list-meetings", help="List meetings")
+    list_meetings.add_argument("--limit", type=int, default=10)
 
     assign_category = subparsers.add_parser("assign-category", help="Assign category")
     assign_category.add_argument("message_id", type=int)
@@ -93,9 +108,26 @@ def run_cli() -> None:
         print(f"Ingested {len(ids)} messages from IMAP.")
         return
 
+    if args.command == "ingest-calendar-mock":
+        provider = MockCalendarProvider(Path(args.fixture))
+        meetings = provider.fetch_upcoming(args.limit)
+        ids = services.meetings.ingest_meetings(meetings)
+        print(f"Ingested {len(ids)} meetings from mock fixture.")
+        return
+
     if args.command == "add-category":
         category_id = services.categories.create_category(args.name, args.description)
         print(f"Created category {category_id} ({args.name}).")
+        return
+
+    if args.command == "list-templates":
+        for template in list_templates():
+            print(template.name)
+        return
+
+    if args.command == "load-template":
+        created = load_template(services.store, args.template_name)
+        print(f"Loaded {created} categories from template.")
         return
 
     if args.command == "list-categories":
@@ -106,6 +138,11 @@ def run_cli() -> None:
     if args.command == "list-messages":
         for message in services.store.list_messages(args.limit):
             print(f"{message.id}: {message.subject} ({message.sender})")
+        return
+
+    if args.command == "list-meetings":
+        for meeting in services.meetings.list_meetings(args.limit):
+            print(f"{meeting.id}: {meeting.title} ({meeting.start_time})")
         return
 
     if args.command == "assign-category":

@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-from inboxpilot.models import AiRequest, AiResponse, Category, Message, Note
+from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,23 @@ class StoredCategory:
     id: int
     name: str
     description: str | None
+
+
+@dataclass(frozen=True)
+class StoredMeeting:
+    """Summary: Meeting record with database identifier.
+
+    Importance: Enables listing and referencing meetings in notes and chat.
+    Alternatives: Store meetings only as raw provider IDs.
+    """
+
+    id: int
+    provider_event_id: str
+    title: str
+    participants: str
+    start_time: str
+    end_time: str
+    transcript_ref: str | None
 
 
 class SqliteStore:
@@ -111,6 +128,19 @@ class SqliteStore:
                     parent_type TEXT NOT NULL,
                     parent_id INTEGER NOT NULL,
                     content TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS meetings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider_event_id TEXT NOT NULL UNIQUE,
+                    title TEXT,
+                    participants TEXT,
+                    start_time TEXT,
+                    end_time TEXT,
+                    transcript_ref TEXT
                 )
                 """
             )
@@ -257,6 +287,66 @@ class SqliteStore:
             cursor.execute("SELECT id, name, description FROM categories ORDER BY name")
             rows = cursor.fetchall()
         return [StoredCategory(*row) for row in rows]
+
+    def save_meetings(self, meetings: list[Meeting]) -> list[int]:
+        """Summary: Persist meetings and return their database IDs.
+
+        Importance: Enables future meeting queries and note linking.
+        Alternatives: Store meetings only in memory for the session.
+        """
+
+        ids: list[int] = []
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            for meeting in meetings:
+                cursor.execute(
+                    """
+                    INSERT OR IGNORE INTO meetings (
+                        provider_event_id, title, participants, start_time, end_time, transcript_ref
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        meeting.provider_event_id,
+                        meeting.title,
+                        meeting.participants,
+                        meeting.start_time.isoformat(),
+                        meeting.end_time.isoformat(),
+                        meeting.transcript_ref,
+                    ),
+                )
+                if cursor.lastrowid:
+                    ids.append(cursor.lastrowid)
+                else:
+                    cursor.execute(
+                        "SELECT id FROM meetings WHERE provider_event_id = ?",
+                        (meeting.provider_event_id,),
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        ids.append(int(row[0]))
+            connection.commit()
+        return ids
+
+    def list_meetings(self, limit: int) -> list[StoredMeeting]:
+        """Summary: Retrieve recent meetings from storage.
+
+        Importance: Supplies CLI listing and meeting context.
+        Alternatives: Load meetings directly from providers on demand.
+        """
+
+        with self._connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT id, provider_event_id, title, participants, start_time, end_time, transcript_ref
+                FROM meetings
+                ORDER BY start_time DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+        return [StoredMeeting(*row) for row in rows]
 
     def assign_category(self, message_id: int, category_id: int) -> None:
         """Summary: Assign a category to a message.

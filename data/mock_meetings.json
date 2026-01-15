@@ -1,0 +1,18 @@
+[
+  {
+    "provider_event_id": "meet-1",
+    "title": "Kickoff Sync",
+    "participants": "pm@example.com, you@example.com",
+    "start_time": "2026-01-16T09:00:00",
+    "end_time": "2026-01-16T09:30:00",
+    "transcript_ref": null
+  },
+  {
+    "provider_event_id": "meet-2",
+    "title": "Hiring Debrief",
+    "participants": "hr@example.com, you@example.com",
+    "start_time": "2026-01-17T14:00:00",
+    "end_time": "2026-01-17T14:45:00",
+    "transcript_ref": null
+  }
+]

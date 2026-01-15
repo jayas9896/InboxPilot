@@ -11,8 +11,8 @@ from datetime import datetime
 
 from inboxpilot.ai import AiProvider, estimate_tokens
 from inboxpilot.classifier import RuleBasedClassifier
-from inboxpilot.models import AiRequest, AiResponse, Category, Message, Note
-from inboxpilot.storage.sqlite_store import SqliteStore, StoredMessage
+from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note
+from inboxpilot.storage.sqlite_store import SqliteStore, StoredMeeting, StoredMessage
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,35 @@ class IngestionService:
         """
 
         return self.store.save_messages(messages)
+
+
+@dataclass(frozen=True)
+class MeetingService:
+    """Summary: Handles ingestion and listing of meetings.
+
+    Importance: Keeps meeting workflows consistent with email ingestion.
+    Alternatives: Treat meetings as a separate service outside the MVP.
+    """
+
+    store: SqliteStore
+
+    def ingest_meetings(self, meetings: list[Meeting]) -> list[int]:
+        """Summary: Persist incoming meetings in storage.
+
+        Importance: Normalizes meeting ingestion across providers.
+        Alternatives: Store meetings only in memory for each session.
+        """
+
+        return self.store.save_meetings(meetings)
+
+    def list_meetings(self, limit: int) -> list[StoredMeeting]:
+        """Summary: Return recent meetings from storage.
+
+        Importance: Supports CLI listing and note workflows.
+        Alternatives: Query meetings directly from the provider each time.
+        """
+
+        return self.store.list_meetings(limit)
 
 
 @dataclass(frozen=True)

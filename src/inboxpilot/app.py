@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from inboxpilot.ai import AiProviderFactory
 from inboxpilot.classifier import RuleBasedClassifier
 from inboxpilot.config import AppConfig
-from inboxpilot.services import CategoryService, ChatService, IngestionService
+from inboxpilot.services import CategoryService, ChatService, IngestionService, MeetingService
 from inboxpilot.storage.sqlite_store import SqliteStore
 
 
@@ -24,6 +24,7 @@ class AppServices:
     """
 
     ingestion: IngestionService
+    meetings: MeetingService
     categories: CategoryService
     chat: ChatService
     store: SqliteStore
@@ -42,6 +43,7 @@ def build_services(config: AppConfig) -> AppServices:
     classifier = RuleBasedClassifier()
     ingestion = IngestionService(store)
     categories = CategoryService(store=store, classifier=classifier)
+    meetings = MeetingService(store=store)
     if config.ai_provider == "openai":
         model_name = config.openai_model
     elif config.ai_provider == "ollama":
@@ -54,4 +56,10 @@ def build_services(config: AppConfig) -> AppServices:
         provider_name=config.ai_provider,
         model_name=model_name,
     )
-    return AppServices(ingestion=ingestion, categories=categories, chat=chat, store=store)
+    return AppServices(
+        ingestion=ingestion,
+        meetings=meetings,
+        categories=categories,
+        chat=chat,
+        store=store,
+    )
