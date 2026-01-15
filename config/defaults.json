@@ -1,0 +1,12 @@
+{
+  "db_path": "inboxpilot.db",
+  "ai_provider": "mock",
+  "openai_api_key": "",
+  "openai_model": "gpt-4o-mini",
+  "ollama_url": "http://localhost:11434",
+  "ollama_model": "llama3",
+  "imap_host": "",
+  "imap_user": "",
+  "imap_password": "",
+  "imap_mailbox": "INBOX"
+}

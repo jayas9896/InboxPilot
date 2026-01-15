@@ -1,12 +1,14 @@
 """Summary: Application configuration for InboxPilot.
 
-Importance: Centralizes environment and CLI defaults for consistent behavior.
+Importance: Centralizes environment, .env, and config defaults for consistent behavior.
 Alternatives: Use a dedicated settings library like Pydantic Settings.
 """
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 from dataclasses import dataclass
 
 
@@ -31,21 +33,52 @@ class AppConfig:
 
     @staticmethod
     def from_env() -> "AppConfig":
-        """Summary: Build configuration from environment variables.
+        """Summary: Build configuration from defaults, .env, and environment.
 
-        Importance: Enables flexible deployment without code changes.
-        Alternatives: Parse a local .env file directly in the config layer.
+        Importance: Keeps all variables defined in config defaults while allowing overrides.
+        Alternatives: Parse only environment variables without a defaults file.
         """
 
+        defaults = load_defaults(Path("config") / "defaults.json")
+        load_dotenv(Path(".env"))
         return AppConfig(
-            db_path=os.getenv("INBOXPILOT_DB_PATH", "inboxpilot.db"),
-            ai_provider=os.getenv("INBOXPILOT_AI_PROVIDER", "mock"),
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
-            openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-            ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
-            ollama_model=os.getenv("OLLAMA_MODEL", "llama3"),
-            imap_host=os.getenv("INBOXPILOT_IMAP_HOST"),
-            imap_user=os.getenv("INBOXPILOT_IMAP_USER"),
-            imap_password=os.getenv("INBOXPILOT_IMAP_PASSWORD"),
-            imap_mailbox=os.getenv("INBOXPILOT_IMAP_MAILBOX", "INBOX"),
+            db_path=os.getenv("INBOXPILOT_DB_PATH", defaults["db_path"]),
+            ai_provider=os.getenv("INBOXPILOT_AI_PROVIDER", defaults["ai_provider"]),
+            openai_api_key=os.getenv("OPENAI_API_KEY") or defaults["openai_api_key"] or None,
+            openai_model=os.getenv("OPENAI_MODEL", defaults["openai_model"]),
+            ollama_url=os.getenv("OLLAMA_URL", defaults["ollama_url"]),
+            ollama_model=os.getenv("OLLAMA_MODEL", defaults["ollama_model"]),
+            imap_host=os.getenv("INBOXPILOT_IMAP_HOST") or defaults["imap_host"] or None,
+            imap_user=os.getenv("INBOXPILOT_IMAP_USER") or defaults["imap_user"] or None,
+            imap_password=os.getenv("INBOXPILOT_IMAP_PASSWORD") or defaults["imap_password"] or None,
+            imap_mailbox=os.getenv("INBOXPILOT_IMAP_MAILBOX", defaults["imap_mailbox"]),
         )
+
+
+def load_defaults(path: Path) -> dict[str, str]:
+    """Summary: Load configuration defaults from JSON.
+
+    Importance: Ensures all variables exist in a single config file.
+    Alternatives: Inline defaults in the AppConfig initializer.
+    """
+
+    if not path.exists():
+        raise FileNotFoundError(f"Defaults file not found: {path}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_dotenv(path: Path) -> None:
+    """Summary: Load key-value pairs from a .env file into the environment.
+
+    Importance: Keeps secrets out of code while supporting local workflows.
+    Alternatives: Use python-dotenv or OS-specific secret stores.
+    """
+
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())

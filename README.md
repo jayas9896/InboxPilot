@@ -10,6 +10,8 @@ Recruiter-friendly summary: InboxPilot is a privacy-aware inbox assistant that i
 - Python 3.11+
 
 ### Install
+Create a `.env` file (already scaffolded) and edit values as needed. Do not commit secrets.
+
 Install the package locally:
 ```
 pip install -e .
@@ -49,6 +51,10 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - `mock` (default)
 - `ollama` (requires local Ollama server)
 - `openai` (requires `OPENAI_API_KEY`)
+
+## Configuration
+- All variables are defined in `config/defaults.json`.
+- Secrets live in `.env` and override defaults via `src/inboxpilot/config.py`.
 
 ## Categories
 - Categories are first-class objects stored in SQLite.
