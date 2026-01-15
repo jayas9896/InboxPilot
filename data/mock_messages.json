@@ -1,0 +1,29 @@
+[
+  {
+    "provider_message_id": "mock-1",
+    "subject": "Welcome to InboxPilot",
+    "sender": "welcome@example.com",
+    "recipients": "you@example.com",
+    "timestamp": "2026-01-15T10:00:00",
+    "snippet": "Thanks for trying InboxPilot",
+    "body": "Thanks for trying InboxPilot. Let us know if you have questions."
+  },
+  {
+    "provider_message_id": "mock-2",
+    "subject": "Interview availability",
+    "sender": "recruiter@example.com",
+    "recipients": "you@example.com",
+    "timestamp": "2026-01-14T16:30:00",
+    "snippet": "Can you share availability",
+    "body": "Can you share your interview availability for next week?"
+  },
+  {
+    "provider_message_id": "mock-3",
+    "subject": "Project kickoff meeting",
+    "sender": "pm@example.com",
+    "recipients": "you@example.com",
+    "timestamp": "2026-01-13T09:15:00",
+    "snippet": "Kickoff agenda",
+    "body": "Here is the agenda for our project kickoff meeting tomorrow."
+  }
+]
