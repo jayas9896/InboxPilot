@@ -7,6 +7,7 @@ Alternatives: Use a CLI-only workflow or a different web framework.
 from __future__ import annotations
 
 from pathlib import Path
+import logging
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -168,6 +169,8 @@ def create_app(config: AppConfig) -> FastAPI:
     Alternatives: Instantiate services globally outside the factory.
     """
 
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     app = FastAPI(title="InboxPilot API", version="0.1.0")
     services = build_services(config)
 

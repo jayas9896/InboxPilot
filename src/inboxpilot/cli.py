@@ -7,6 +7,7 @@ Alternatives: Build a web UI or desktop client first.
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
 from inboxpilot.app import build_services
@@ -113,6 +114,7 @@ def run_cli() -> None:
     Alternatives: Invoke services via an HTTP API.
     """
 
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     parser = build_parser()
     args = parser.parse_args()
     config = AppConfig.from_env()

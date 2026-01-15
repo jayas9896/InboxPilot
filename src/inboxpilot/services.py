@@ -7,12 +7,16 @@ Alternatives: Build a full service layer with dependency injection framework.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from datetime import datetime
 
 from inboxpilot.ai import AiProvider, estimate_tokens
 from inboxpilot.classifier import RuleBasedClassifier
 from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note, Task
 from inboxpilot.storage.sqlite_store import SqliteStore, StoredMeeting, StoredMessage, StoredTask
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -32,7 +36,9 @@ class IngestionService:
         Alternatives: Use a queue-based ingestion pipeline.
         """
 
-        return self.store.save_messages(messages)
+        ids = self.store.save_messages(messages)
+        logger.info("Ingested %s messages.", len(ids))
+        return ids
 
 
 @dataclass(frozen=True)
@@ -52,7 +58,9 @@ class MeetingService:
         Alternatives: Store meetings only in memory for each session.
         """
 
-        return self.store.save_meetings(meetings)
+        ids = self.store.save_meetings(meetings)
+        logger.info("Ingested %s meetings.", len(ids))
+        return ids
 
     def list_meetings(self, limit: int) -> list[StoredMeeting]:
         """Summary: Return recent meetings from storage.
@@ -86,7 +94,9 @@ class CategoryService:
         """
 
         category = Category(name=name, description=description)
-        return self.store.create_category(category)
+        category_id = self.store.create_category(category)
+        logger.info("Created category %s.", name)
+        return category_id
 
     def suggest_categories(self, message: Message) -> list[Category]:
         """Summary: Suggest categories for a message.
@@ -170,6 +180,7 @@ class CategoryService:
         """
 
         self.store.assign_category(message_id, category_id)
+        logger.info("Assigned category %s to message %s.", category_id, message_id)
 
 
 @dataclass(frozen=True)
@@ -201,6 +212,7 @@ class ChatService:
         )
         response_text, latency_ms = self.ai_provider.generate_text(prompt, purpose="answer")
         self._log_ai(prompt, "answer", response_text, latency_ms)
+        logger.info("Answered chat query.")
         return response_text
 
     def draft_reply(self, message_id: int, instructions: str) -> str:
@@ -220,6 +232,7 @@ class ChatService:
         )
         response_text, latency_ms = self.ai_provider.generate_text(prompt, purpose="draft")
         self._log_ai(prompt, "draft", response_text, latency_ms)
+        logger.info("Drafted reply for message %s.", message_id)
         return response_text
 
     def add_note(self, parent_type: str, parent_id: int, content: str) -> int:
@@ -230,7 +243,9 @@ class ChatService:
         """
 
         note = Note(parent_type=parent_type, parent_id=parent_id, content=content)
-        return self.store.add_note(note)
+        note_id = self.store.add_note(note)
+        logger.info("Added note for %s %s.", parent_type, parent_id)
+        return note_id
 
     def _get_message(self, message_id: int) -> StoredMessage:
         """Summary: Retrieve a single message by ID.
@@ -303,7 +318,9 @@ class TaskService:
         """
 
         task = Task(parent_type=parent_type, parent_id=parent_id, description=description)
-        return self.store.add_task(task)
+        task_id = self.store.add_task(task)
+        logger.info("Added task for %s %s.", parent_type, parent_id)
+        return task_id
 
     def list_tasks(self, parent_type: str, parent_id: int) -> list[StoredTask]:
         """Summary: List tasks for a message or meeting.
@@ -351,6 +368,7 @@ class TaskService:
             cleaned = line.strip().lstrip("-").strip()
             if cleaned:
                 task_ids.append(self.add_task("message", message_id, cleaned))
+        logger.info("Extracted %s tasks from message %s.", len(task_ids), message_id)
         return task_ids
 
     def extract_tasks_from_meeting(self, meeting_id: int) -> list[int]:
@@ -388,6 +406,7 @@ class TaskService:
             cleaned = line.strip().lstrip("-").strip()
             if cleaned:
                 task_ids.append(self.add_task("meeting", meeting_id, cleaned))
+        logger.info("Extracted %s tasks from meeting %s.", len(task_ids), meeting_id)
         return task_ids
 
 
@@ -412,6 +431,7 @@ class MeetingSummaryService:
         """
 
         self.store.save_meeting_transcript(meeting_id, content)
+        logger.info("Saved transcript for meeting %s.", meeting_id)
 
     def summarize_meeting(self, meeting_id: int) -> int:
         """Summary: Summarize a meeting transcript into a note.
@@ -444,4 +464,6 @@ class MeetingSummaryService:
         )
         self.store.log_ai_response(response)
         note = Note(parent_type="meeting", parent_id=meeting_id, content=response_text)
-        return self.store.add_note(note)
+        note_id = self.store.add_note(note)
+        logger.info("Created meeting summary for meeting %s.", meeting_id)
+        return note_id
