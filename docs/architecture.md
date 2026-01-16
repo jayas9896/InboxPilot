@@ -18,6 +18,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - Observability: Structured logs for ingestion and AI events, plus lightweight metrics.
 - Identity Context: Default user record with user_id fields for future multi-user support.
 - API Security: Optional API key header for local/private deployments.
+- Integration Registry: Connection records for email/calendar providers without storing secrets.
 
 ## Data Flow
 1. User connects an email provider in read-only mode.

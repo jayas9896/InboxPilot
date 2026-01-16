@@ -222,6 +222,19 @@
         </div>
         <div class="list" id="tasksList"></div>
       </div>
+
+      <div class="card">
+        <h2>Connections</h2>
+        <input id="connectionType" placeholder="Provider type (email/calendar)" />
+        <input id="connectionName" placeholder="Provider name (gmail/outlook)" />
+        <input id="connectionStatus" placeholder="Status (connected/pending)" />
+        <input id="connectionDetails" placeholder="Details (optional)" />
+        <div class="row">
+          <button id="addConnection">Add Connection</button>
+          <button id="loadConnections" class="secondary">Refresh</button>
+        </div>
+        <div class="list" id="connectionsList"></div>
+      </div>
     </section>
 
     <script>
@@ -362,6 +375,31 @@
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ message_id: messageId }),
+        });
+      });
+
+      document.getElementById("addConnection").addEventListener("click", async () => {
+        const providerType = document.getElementById("connectionType").value;
+        const providerName = document.getElementById("connectionName").value;
+        const status = document.getElementById("connectionStatus").value;
+        const details = document.getElementById("connectionDetails").value || null;
+        await fetch(`${api}/connections`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({
+            provider_type: providerType,
+            provider_name: providerName,
+            status,
+            details,
+          }),
+        });
+      });
+
+      document.getElementById("loadConnections").addEventListener("click", async () => {
+        const response = await fetch(`${api}/connections`, { headers: authHeaders() });
+        const payload = await response.json();
+        renderList(document.getElementById("connectionsList"), payload, (item) => {
+          return `${item.provider_type}/${item.provider_name} - ${item.status}`;
         });
       });
     </script>

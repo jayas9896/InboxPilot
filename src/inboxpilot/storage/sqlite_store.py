@@ -13,7 +13,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note, Task, User
+from inboxpilot.models import (
+    AiRequest,
+    AiResponse,
+    Category,
+    Connection,
+    Meeting,
+    Message,
+    Note,
+    Task,
+    User,
+)
 
 
 @dataclass(frozen=True)
@@ -58,6 +68,23 @@ class StoredUser:
     id: int
     display_name: str
     email: str
+
+
+@dataclass(frozen=True)
+class StoredConnection:
+    """Summary: Connection record with database identifier.
+
+    Importance: Tracks external provider connections per user.
+    Alternatives: Store connection metadata in config files only.
+    """
+
+    id: int
+    user_id: int
+    provider_type: str
+    provider_name: str
+    status: str
+    created_at: str
+    details: str | None
 
 
 @dataclass(frozen=True)
@@ -244,6 +271,19 @@ class SqliteStore:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS connections (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    provider_type TEXT NOT NULL,
+                    provider_name TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    details TEXT
+                )
+                """
+            )
             connection.commit()
         self._ensure_column("categories", "user_id")
         self._ensure_column("messages", "user_id")
@@ -273,6 +313,55 @@ class SqliteStore:
                 user_id = int(row[0]) if row else 0
             connection.commit()
         return int(user_id)
+
+    def add_connection(self, connection: Connection, user_id: int) -> int:
+        """Summary: Create a connection record for a user.
+
+        Importance: Tracks integrations without persisting provider secrets.
+        Alternatives: Store connection state only in memory.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                """
+                INSERT INTO connections (
+                    user_id, provider_type, provider_name, status, created_at, details
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    connection.provider_type,
+                    connection.provider_name,
+                    connection.status,
+                    connection.created_at.isoformat(),
+                    connection.details,
+                ),
+            )
+            connection_id = cursor.lastrowid
+            connection_db.commit()
+        return int(connection_id)
+
+    def list_connections(self, user_id: int) -> list[StoredConnection]:
+        """Summary: List connections for a user.
+
+        Importance: Supports integration management views.
+        Alternatives: Store connection data in a separate service.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                """
+                SELECT id, user_id, provider_type, provider_name, status, created_at, details
+                FROM connections
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                """,
+                (user_id,),
+            )
+            rows = cursor.fetchall()
+        return [StoredConnection(*row) for row in rows]
 
     def save_messages(self, messages: list[Message], user_id: int | None = None) -> list[int]:
         """Summary: Persist messages and return their database IDs.

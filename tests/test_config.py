@@ -66,7 +66,11 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
           \"api_port\": \"8000\",
           \"default_user_name\": \"Local User\",
           \"default_user_email\": \"local@inboxpilot\",
-          \"api_key\": \"\"
+          \"api_key\": \"\",
+          \"google_client_id\": \"\",
+          \"google_client_secret\": \"\",
+          \"microsoft_client_id\": \"\",
+          \"microsoft_client_secret\": \"\"
         }
         """.strip(),
         encoding="utf-8",
@@ -81,3 +85,7 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert config.ai_provider == "mock"
     assert config.default_user_name == "Local User"
     assert config.default_user_email == "local@inboxpilot"
+    assert config.google_client_id == ""
+    assert config.google_client_secret == ""
+    assert config.microsoft_client_id == ""
+    assert config.microsoft_client_secret == ""

@@ -35,6 +35,10 @@ class AppConfig:
     default_user_name: str
     default_user_email: str
     api_key: str
+    google_client_id: str
+    google_client_secret: str
+    microsoft_client_id: str
+    microsoft_client_secret: str
 
     @staticmethod
     def from_env() -> "AppConfig":
@@ -66,6 +70,12 @@ class AppConfig:
                 "INBOXPILOT_DEFAULT_USER_EMAIL", defaults["default_user_email"]
             ),
             api_key=os.getenv("INBOXPILOT_API_KEY", defaults["api_key"]),
+            google_client_id=os.getenv("GOOGLE_CLIENT_ID", defaults["google_client_id"]),
+            google_client_secret=os.getenv("GOOGLE_CLIENT_SECRET", defaults["google_client_secret"]),
+            microsoft_client_id=os.getenv("MICROSOFT_CLIENT_ID", defaults["microsoft_client_id"]),
+            microsoft_client_secret=os.getenv(
+                "MICROSOFT_CLIENT_SECRET", defaults["microsoft_client_secret"]
+            ),
         )
 
 

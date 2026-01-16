@@ -5,7 +5,7 @@
 - future: tenant_id, role, preferences
 
 ## Account / Connection
-- id, user_id, provider_type (email/calendar), provider_name
+- id, user_id, provider_type (email/calendar), provider_name, status, created_at, details
 - auth_type, read_only, status
 
 ## Message

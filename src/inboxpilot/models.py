@@ -23,6 +23,21 @@ class User:
 
 
 @dataclass(frozen=True)
+class Connection:
+    """Summary: Represents an external provider connection.
+
+    Importance: Tracks integration state without storing secrets in the database.
+    Alternatives: Store provider data inline with messages or meetings.
+    """
+
+    provider_type: str
+    provider_name: str
+    status: str
+    created_at: datetime
+    details: str | None = None
+
+
+@dataclass(frozen=True)
 class Message:
     """Summary: Represents an email message with metadata and content.
 

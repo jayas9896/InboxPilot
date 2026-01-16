@@ -37,6 +37,10 @@ def _build_config(db_path: str) -> AppConfig:
         default_user_name="Local User",
         default_user_email="local@inboxpilot",
         api_key="",
+        google_client_id="",
+        google_client_secret="",
+        microsoft_client_id="",
+        microsoft_client_secret="",
     )
 
 
@@ -184,3 +188,27 @@ def test_api_meeting_summary(tmp_path: Path) -> None:
     assert transcript_response.status_code == 200
     summary_response = client.post("/meetings/summary", json={"meeting_id": 1})
     assert summary_response.status_code == 200
+
+
+def test_api_connections(tmp_path: Path) -> None:
+    """Summary: Verify connection endpoints work over HTTP.
+
+    Importance: Ensures integration records are managed via the API.
+    Alternatives: Use CLI-only connection workflows.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    create_response = client.post(
+        "/connections",
+        json={
+            "provider_type": "email",
+            "provider_name": "gmail",
+            "status": "connected",
+            "details": "read-only",
+        },
+    )
+    assert create_response.status_code == 200
+    list_response = client.get("/connections")
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["provider_name"] == "gmail"

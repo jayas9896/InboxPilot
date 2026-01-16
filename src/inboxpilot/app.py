@@ -15,6 +15,7 @@ from inboxpilot.models import User
 from inboxpilot.services import (
     CategoryService,
     ChatService,
+    ConnectionService,
     IngestionService,
     MeetingService,
     MeetingSummaryService,
@@ -37,6 +38,7 @@ class AppServices:
     chat: ChatService
     tasks: TaskService
     meeting_notes: MeetingSummaryService
+    connections: ConnectionService
     store: SqliteStore
     user_id: int
 
@@ -91,6 +93,7 @@ def build_services(config: AppConfig) -> AppServices:
         model_name=model_name,
         user_id=user_id,
     )
+    connections = ConnectionService(store=store, user_id=user_id)
     return AppServices(
         ingestion=ingestion,
         meetings=meetings,
@@ -98,6 +101,7 @@ def build_services(config: AppConfig) -> AppServices:
         chat=chat,
         tasks=tasks,
         meeting_notes=meeting_notes,
+        connections=connections,
         store=store,
         user_id=user_id,
     )

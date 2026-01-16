@@ -104,6 +104,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     extract_meeting_tasks.add_argument("meeting_id", type=int)
 
+    add_connection = subparsers.add_parser("add-connection", help="Add an integration record")
+    add_connection.add_argument("provider_type", type=str)
+    add_connection.add_argument("provider_name", type=str)
+    add_connection.add_argument("status", type=str)
+    add_connection.add_argument("--details", type=str, default=None)
+
+    subparsers.add_parser("list-connections", help="List integration records")
+
     return parser
 
 
@@ -236,6 +244,21 @@ def run_cli() -> None:
     if args.command == "extract-meeting-tasks":
         task_ids = services.tasks.extract_tasks_from_meeting(args.meeting_id)
         print(f"Extracted {len(task_ids)} tasks.")
+        return
+
+    if args.command == "add-connection":
+        connection_id = services.connections.add_connection(
+            args.provider_type, args.provider_name, args.status, args.details
+        )
+        print(f"Added connection {connection_id}.")
+        return
+
+    if args.command == "list-connections":
+        for connection in services.connections.list_connections():
+            print(
+                f"{connection.id}: {connection.provider_type}/{connection.provider_name} "
+                f"{connection.status} ({connection.created_at})"
+            )
         return
 
 

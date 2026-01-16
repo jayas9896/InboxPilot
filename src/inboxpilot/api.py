@@ -162,6 +162,19 @@ class MeetingSummaryRequest(BaseModel):
     meeting_id: int
 
 
+class ConnectionCreateRequest(BaseModel):
+    """Summary: Request payload for integration connections.
+
+    Importance: Enables tracking provider integrations over HTTP.
+    Alternatives: Create connections only via CLI.
+    """
+
+    provider_type: str
+    provider_name: str
+    status: str
+    details: str | None = None
+
+
 def create_app(config: AppConfig) -> FastAPI:
     """Summary: Create a FastAPI app wired to InboxPilot services.
 
@@ -463,6 +476,42 @@ def create_app(config: AppConfig) -> FastAPI:
 
         note_id = services.meeting_notes.summarize_meeting(payload.meeting_id)
         return {"note_id": note_id}
+
+    @app.post("/connections", dependencies=[Depends(require_api_key)])
+    def add_connection(payload: ConnectionCreateRequest) -> dict[str, Any]:
+        """Summary: Create a connection record.
+
+        Importance: Tracks provider integration state for UI clients.
+        Alternatives: Store connection data outside the API.
+        """
+
+        connection_id = services.connections.add_connection(
+            payload.provider_type,
+            payload.provider_name,
+            payload.status,
+            payload.details,
+        )
+        return {"id": connection_id}
+
+    @app.get("/connections", dependencies=[Depends(require_api_key)])
+    def list_connections() -> list[dict[str, Any]]:
+        """Summary: List integration connections.
+
+        Importance: Exposes integration status to clients.
+        Alternatives: Keep connections private to the server only.
+        """
+
+        return [
+            {
+                "id": connection.id,
+                "provider_type": connection.provider_type,
+                "provider_name": connection.provider_name,
+                "status": connection.status,
+                "created_at": connection.created_at,
+                "details": connection.details,
+            }
+            for connection in services.connections.list_connections()
+        ]
 
     return app
 

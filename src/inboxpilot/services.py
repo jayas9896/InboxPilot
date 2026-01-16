@@ -12,8 +12,23 @@ from datetime import datetime
 
 from inboxpilot.ai import AiProvider, estimate_tokens
 from inboxpilot.classifier import RuleBasedClassifier
-from inboxpilot.models import AiRequest, AiResponse, Category, Meeting, Message, Note, Task
-from inboxpilot.storage.sqlite_store import SqliteStore, StoredMeeting, StoredMessage, StoredTask
+from inboxpilot.models import (
+    AiRequest,
+    AiResponse,
+    Category,
+    Connection,
+    Meeting,
+    Message,
+    Note,
+    Task,
+)
+from inboxpilot.storage.sqlite_store import (
+    SqliteStore,
+    StoredConnection,
+    StoredMeeting,
+    StoredMessage,
+    StoredTask,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -475,3 +490,44 @@ class MeetingSummaryService:
         note_id = self.store.add_note(note, user_id=self.user_id)
         logger.info("Created meeting summary for meeting %s.", meeting_id)
         return note_id
+
+
+@dataclass(frozen=True)
+class ConnectionService:
+    """Summary: Manages external provider connections.
+
+    Importance: Tracks integration state for email and calendar providers.
+    Alternatives: Store connections only in environment configuration.
+    """
+
+    store: SqliteStore
+    user_id: int
+
+    def add_connection(
+        self, provider_type: str, provider_name: str, status: str, details: str | None = None
+    ) -> int:
+        """Summary: Create a new connection record.
+
+        Importance: Records integration metadata without persisting secrets.
+        Alternatives: Skip connection tracking in the MVP.
+        """
+
+        connection = Connection(
+            provider_type=provider_type,
+            provider_name=provider_name,
+            status=status,
+            created_at=datetime.utcnow(),
+            details=details,
+        )
+        connection_id = self.store.add_connection(connection, user_id=self.user_id)
+        logger.info("Added connection %s (%s).", provider_name, provider_type)
+        return connection_id
+
+    def list_connections(self) -> list[StoredConnection]:
+        """Summary: List stored connections for the current user.
+
+        Importance: Supports UI and API views for integrations.
+        Alternatives: Store connection state in config only.
+        """
+
+        return self.store.list_connections(user_id=self.user_id)

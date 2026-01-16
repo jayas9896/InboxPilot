@@ -39,6 +39,8 @@ python -m inboxpilot.cli extract-tasks 1
 python -m inboxpilot.cli add-meeting-transcript 1 "We agreed to ship on Friday."
 python -m inboxpilot.cli summarize-meeting 1
 python -m inboxpilot.cli extract-meeting-tasks 1
+python -m inboxpilot.cli add-connection email gmail connected --details "read-only"
+python -m inboxpilot.cli list-connections
 ```
 
 ### Run the API (FastAPI)
@@ -83,6 +85,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - Secrets live in `.env` and override defaults via `src/inboxpilot/config.py`.
 - Single-user mode uses `INBOXPILOT_DEFAULT_USER_NAME` and `INBOXPILOT_DEFAULT_USER_EMAIL`.
 - Set `INBOXPILOT_API_KEY` to require `X-API-Key` for API requests.
+- OAuth client IDs and secrets live in `.env` as `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
 
 ## Categories
 - Categories are first-class objects stored in SQLite.
