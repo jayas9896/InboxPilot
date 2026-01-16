@@ -27,3 +27,4 @@ CL-0024 | Token storage | 2026-01-15 | Added obfuscated token storage for OAuth.
 CL-0025 | OAuth token placeholder | 2026-01-15 | Store placeholder token on OAuth callback.
 CL-0026 | Message search | 2026-01-15 | Added search endpoints and UI.
 CL-0027 | Meeting search | 2026-01-15 | Added meeting search and chat context support.
+CL-0028 | CLI note/task parent support | 2026-01-15 | Added parent_type/parent_id for CLI notes and tasks.

@@ -91,20 +91,23 @@ def build_parser() -> argparse.ArgumentParser:
     draft.add_argument("message_id", type=int)
     draft.add_argument("instructions", type=str)
 
-    note = subparsers.add_parser("add-note", help="Add a note to a message")
-    note.add_argument("message_id", type=int)
+    note = subparsers.add_parser("add-note", help="Add a note to a message or meeting")
+    note.add_argument("parent_type", type=str)
+    note.add_argument("parent_id", type=int)
     note.add_argument("content", type=str)
 
     list_notes = subparsers.add_parser("list-notes", help="List notes")
     list_notes.add_argument("parent_type", type=str)
     list_notes.add_argument("parent_id", type=int)
 
-    add_task = subparsers.add_parser("add-task", help="Add a task to a message")
-    add_task.add_argument("message_id", type=int)
+    add_task = subparsers.add_parser("add-task", help="Add a task to a message or meeting")
+    add_task.add_argument("parent_type", type=str)
+    add_task.add_argument("parent_id", type=int)
     add_task.add_argument("description", type=str)
 
-    list_tasks = subparsers.add_parser("list-tasks", help="List tasks for a message")
-    list_tasks.add_argument("message_id", type=int)
+    list_tasks = subparsers.add_parser("list-tasks", help="List tasks for a message or meeting")
+    list_tasks.add_argument("parent_type", type=str)
+    list_tasks.add_argument("parent_id", type=int)
 
     update_task = subparsers.add_parser("update-task", help="Update a task status")
     update_task.add_argument("task_id", type=int)
@@ -283,7 +286,7 @@ def run_cli() -> None:
         return
 
     if args.command == "add-note":
-        note_id = services.chat.add_note("message", args.message_id, args.content)
+        note_id = services.chat.add_note(args.parent_type, args.parent_id, args.content)
         print(f"Added note {note_id}.")
         return
 
@@ -296,12 +299,12 @@ def run_cli() -> None:
         return
 
     if args.command == "add-task":
-        task_id = services.tasks.add_task("message", args.message_id, args.description)
+        task_id = services.tasks.add_task(args.parent_type, args.parent_id, args.description)
         print(f"Added task {task_id}.")
         return
 
     if args.command == "list-tasks":
-        tasks = services.tasks.list_tasks("message", args.message_id)
+        tasks = services.tasks.list_tasks(args.parent_type, args.parent_id)
         for task in tasks:
             print(f"{task.id}: {task.description} [{task.status}]")
         return

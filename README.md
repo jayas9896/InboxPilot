@@ -37,13 +37,14 @@ python -m inboxpilot.cli list-meetings
 python -m inboxpilot.cli search-meetings "project"
 python -m inboxpilot.cli chat "What emails need follow up?"
 python -m inboxpilot.cli draft 1 "Thank them and ask for availability"
-python -m inboxpilot.cli add-task 1 "Send revised deck"
-python -m inboxpilot.cli list-tasks 1
+python -m inboxpilot.cli add-task message 1 "Send revised deck"
+python -m inboxpilot.cli list-tasks message 1
 python -m inboxpilot.cli update-task 1 done
 python -m inboxpilot.cli extract-tasks 1
 python -m inboxpilot.cli add-meeting-transcript 1 "We agreed to ship on Friday."
 python -m inboxpilot.cli summarize-meeting 1
 python -m inboxpilot.cli extract-meeting-tasks 1
+python -m inboxpilot.cli add-note message 1 "Follow up on budget"
 python -m inboxpilot.cli list-notes message 1
 python -m inboxpilot.cli add-connection email gmail connected --details "read-only"
 python -m inboxpilot.cli list-connections
