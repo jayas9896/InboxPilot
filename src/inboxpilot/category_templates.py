@@ -33,11 +33,29 @@ def list_templates() -> list[CategoryTemplate]:
 
     return [
         CategoryTemplate(
+            name="real_estate",
+            categories=[
+                Category(name="Leads", description="Buyer and seller inquiries"),
+                Category(name="Listings", description="Active listings and showings"),
+                Category(name="Contracts", description="Offers and contract updates"),
+                Category(name="Closings", description="Closing timelines and documents"),
+            ],
+        ),
+        CategoryTemplate(
             name="recruiting",
             categories=[
                 Category(name="Candidates", description="Applicant communications"),
                 Category(name="Interviews", description="Scheduling and feedback"),
                 Category(name="Offers", description="Offer logistics and negotiations"),
+            ],
+        ),
+        CategoryTemplate(
+            name="sales",
+            categories=[
+                Category(name="Prospects", description="Early-stage outreach"),
+                Category(name="Pipeline", description="Active deals and follow-ups"),
+                Category(name="Renewals", description="Existing customer renewals"),
+                Category(name="Contracts", description="Pricing and legal review"),
             ],
         ),
         CategoryTemplate(
@@ -49,11 +67,12 @@ def list_templates() -> list[CategoryTemplate]:
             ],
         ),
         CategoryTemplate(
-            name="personal",
+            name="personal_life",
             categories=[
                 Category(name="Family", description="Family communications"),
                 Category(name="Finance", description="Bills and banking"),
                 Category(name="Health", description="Appointments and health topics"),
+                Category(name="Travel", description="Trips and plans"),
             ],
         ),
     ]

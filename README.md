@@ -130,6 +130,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - You can create categories with or without descriptions.
 - Manual assignment is supported via the CLI, and AI-based suggestions are available.
 - Starter templates are available with `list-templates` and `load-template`.
+- Templates include `real_estate`, `recruiting`, `sales`, `freelancing`, and `personal_life`.
 - AI-based suggestions are available via `suggest-categories`.
 
 ## Chat Assistant

@@ -30,3 +30,4 @@ CL-0027 | Meeting search | 2026-01-15 | Added meeting search and chat context su
 CL-0028 | CLI note/task parent support | 2026-01-15 | Added parent_type/parent_id for CLI notes and tasks.
 CL-0029 | Transcript file ingest | 2026-01-15 | Added transcript file ingestion for meetings.
 CL-0030 | AI audit listing | 2026-01-15 | Added AI request/response listing endpoints.
+CL-0031 | Expanded templates | 2026-01-15 | Added real estate, sales, and personal life templates.
