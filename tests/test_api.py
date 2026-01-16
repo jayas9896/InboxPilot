@@ -216,6 +216,28 @@ def test_api_user_api_keys(tmp_path: Path) -> None:
     assert list_response.json()[0]["subject"] == "User inbox"
 
 
+
+
+def test_api_revoke_api_key(tmp_path: Path) -> None:
+    """Summary: Verify API key revocation endpoint.
+
+    Importance: Ensures admin can revoke keys via the API.
+    Alternatives: Manage keys via CLI only.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    create_user = client.post("/users", json={"display_name": "Test", "email": "test@example.com"})
+    user_id = create_user.json()["id"]
+    create_key = client.post(f"/users/{user_id}/keys", json={"label": "test"})
+    key_id = create_key.json()["id"]
+    revoke = client.delete(f"/users/{user_id}/keys/{key_id}")
+    assert revoke.status_code == 200
+    list_keys = client.get(f"/users/{user_id}/keys")
+    assert list_keys.status_code == 200
+    assert not list_keys.json()
+
+
 def test_api_search_messages(tmp_path: Path) -> None:
     """Summary: Verify message search endpoint works.
 

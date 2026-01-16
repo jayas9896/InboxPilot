@@ -190,6 +190,10 @@ def build_parser() -> argparse.ArgumentParser:
     list_keys = subparsers.add_parser("list-api-keys", help="List API keys for a user")
     list_keys.add_argument("user_email", type=str)
 
+    delete_key = subparsers.add_parser("delete-api-key", help="Revoke an API key")
+    delete_key.add_argument("user_email", type=str)
+    delete_key.add_argument("key_id", type=int)
+
     return parser
 
 
@@ -487,6 +491,17 @@ def run_cli() -> None:
         for key in keys:
             label = key.label or ""
             print(f"{key.id}: {label} ({key.created_at})")
+        return
+
+    if args.command == "delete-api-key":
+        user = services.users.get_user_by_email(args.user_email)
+        if not user:
+            raise ValueError("User not found")
+        deleted = services.api_keys.revoke_api_key(user.id, args.key_id)
+        if deleted:
+            print("API key revoked.")
+        else:
+            print("API key not found.")
         return
 
 

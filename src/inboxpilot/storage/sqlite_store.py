@@ -535,6 +535,23 @@ class SqliteStore:
             connection_db.commit()
         return int(key_id)
 
+    def delete_api_key(self, user_id: int, key_id: int) -> bool:
+        """Summary: Delete an API key for a user.
+
+        Importance: Supports key revocation and rotation.
+        Alternatives: Mark keys as inactive instead of deletion.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                "DELETE FROM api_keys WHERE id = ? AND user_id = ?",
+                (key_id, user_id),
+            )
+            deleted = cursor.rowcount > 0
+            connection_db.commit()
+        return deleted
+
     def list_api_keys(self, user_id: int) -> list[StoredApiKey]:
         """Summary: List API keys for a user.
 

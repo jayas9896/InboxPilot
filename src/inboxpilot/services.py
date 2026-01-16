@@ -108,6 +108,15 @@ class ApiKeyService:
         )
         return key_id, raw_token
 
+    def revoke_api_key(self, user_id: int, key_id: int) -> bool:
+        """Summary: Revoke an API key for a user.
+
+        Importance: Allows invalidating compromised keys.
+        Alternatives: Rotate keys by issuing replacements only.
+        """
+
+        return self.store.delete_api_key(user_id, key_id)
+
     def list_api_keys(self, user_id: int) -> list[StoredApiKey]:
         """Summary: List API keys for a user.
 

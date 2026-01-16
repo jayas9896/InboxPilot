@@ -16,6 +16,7 @@
 - [x] Gmail OAuth ingestion (read-only).
 - [x] Outlook OAuth ingestion (read-only).
 - [x] Multi-user scaffolding with per-user API keys.
+- [x] API key revocation support.
 - [x] Static analysis and tests configured for core logic.
 - [x] Git discipline with CL logs.
 

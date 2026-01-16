@@ -476,6 +476,28 @@ def create_app(config: AppConfig) -> FastAPI:
             for key in services.api_keys.list_api_keys(user_id)
         ]
 
+
+
+    @app.delete("/users/{user_id}/keys/{key_id}")
+    def revoke_api_key(
+        user_id: int,
+        key_id: int,
+        auth: AuthContext = Depends(require_auth),
+        services: AppServices = Depends(get_services),
+    ) -> dict[str, str]:
+        """Summary: Revoke an API key for a user (admin only).
+
+        Importance: Allows invalidating compromised API tokens.
+        Alternatives: Rotate keys without deletion.
+        """
+
+        if not auth.is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        deleted = services.api_keys.revoke_api_key(user_id, key_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="API key not found")
+        return {"status": "revoked"}
+
     @app.get("/health")
     def health(services: AppServices = Depends(get_services)) -> dict[str, str]:
         """Summary: Health check endpoint.
