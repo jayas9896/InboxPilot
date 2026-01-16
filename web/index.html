@@ -157,6 +157,9 @@
         Triage email and meetings, draft replies, and capture tasks without leaving your
         machine. Everything stays draft-first.
       </p>
+      <div class="row">
+        <input id="apiKey" placeholder="API key (optional)" />
+      </div>
     </section>
 
     <section class="grid">
@@ -223,6 +226,12 @@
 
     <script>
       const api = "";
+      const apiKeyInput = document.getElementById("apiKey");
+
+      const authHeaders = () => {
+        const key = apiKeyInput ? apiKeyInput.value.trim() : "";
+        return key ? { "X-API-Key": key } : {};
+      };
 
       const setStatus = (text) => {
         document.getElementById("ingestStatus").textContent = text;
@@ -246,7 +255,7 @@
         setStatus("Ingesting mock emails...");
         const response = await fetch(`${api}/ingest/mock`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ limit: 5 }),
         });
         const payload = await response.json();
@@ -257,7 +266,7 @@
         setStatus("Ingesting mock meetings...");
         const response = await fetch(`${api}/ingest/calendar-mock`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ limit: 5 }),
         });
         const payload = await response.json();
@@ -265,7 +274,7 @@
       });
 
       document.getElementById("loadMessages").addEventListener("click", async () => {
-        const response = await fetch(`${api}/messages`);
+        const response = await fetch(`${api}/messages`, { headers: authHeaders() });
         const payload = await response.json();
         renderList(document.getElementById("messagesList"), payload, (item) => {
           return `#${item.id} ${item.subject} (${item.sender})`;
@@ -273,7 +282,7 @@
       });
 
       document.getElementById("loadMeetings").addEventListener("click", async () => {
-        const response = await fetch(`${api}/meetings`);
+        const response = await fetch(`${api}/meetings`, { headers: authHeaders() });
         const payload = await response.json();
         renderList(document.getElementById("meetingsList"), payload, (item) => {
           return `#${item.id} ${item.title}`;
@@ -284,7 +293,7 @@
         const query = document.getElementById("chatQuery").value;
         const response = await fetch(`${api}/chat`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ query }),
         });
         const payload = await response.json();
@@ -296,7 +305,7 @@
         const instructions = document.getElementById("draftInstructions").value;
         const response = await fetch(`${api}/draft`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ message_id: messageId, instructions }),
         });
         const payload = await response.json();
@@ -308,7 +317,7 @@
         const description = document.getElementById("categoryDescription").value || null;
         await fetch(`${api}/categories`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ name, description }),
         });
         document.getElementById("categoryName").value = "";
@@ -316,7 +325,7 @@
       });
 
       document.getElementById("loadCategories").addEventListener("click", async () => {
-        const response = await fetch(`${api}/categories`);
+        const response = await fetch(`${api}/categories`, { headers: authHeaders() });
         const payload = await response.json();
         renderList(document.getElementById("categoriesList"), payload, (item) => {
           return `${item.name} ${item.description ? `- ${item.description}` : ""}`;
@@ -327,7 +336,7 @@
         const messageId = Number(document.getElementById("suggestMessageId").value || 0);
         const response = await fetch(`${api}/categories/suggest`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ message_id: messageId }),
         });
         const payload = await response.json();
@@ -341,7 +350,7 @@
         const description = document.getElementById("taskDescription").value;
         await fetch(`${api}/tasks`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ parent_type: "message", parent_id: messageId, description }),
         });
         document.getElementById("taskDescription").value = "";
@@ -351,7 +360,7 @@
         const messageId = Number(document.getElementById("taskMessageId").value || 0);
         await fetch(`${api}/tasks/extract`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ message_id: messageId }),
         });
       });

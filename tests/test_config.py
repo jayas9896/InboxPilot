@@ -65,7 +65,8 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
           \"api_host\": \"127.0.0.1\",
           \"api_port\": \"8000\",
           \"default_user_name\": \"Local User\",
-          \"default_user_email\": \"local@inboxpilot\"
+          \"default_user_email\": \"local@inboxpilot\",
+          \"api_key\": \"\"
         }
         """.strip(),
         encoding="utf-8",

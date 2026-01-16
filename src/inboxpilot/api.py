@@ -10,7 +10,7 @@ from pathlib import Path
 import logging
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -174,6 +174,18 @@ def create_app(config: AppConfig) -> FastAPI:
     app = FastAPI(title="InboxPilot API", version="0.1.0")
     services = build_services(config)
 
+    def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
+        """Summary: Enforce API key authentication when configured.
+
+        Importance: Adds a minimal security layer for local and private deployments.
+        Alternatives: Use OAuth or session-based authentication.
+        """
+
+        if not config.api_key:
+            return
+        if x_api_key != config.api_key:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
     @app.get("/", response_class=HTMLResponse)
     def landing() -> str:
         """Summary: Serve the local web dashboard.
@@ -197,7 +209,7 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return {"status": "ok"}
 
-    @app.post("/ingest/mock")
+    @app.post("/ingest/mock", dependencies=[Depends(require_api_key)])
     def ingest_mock(payload: IngestRequest) -> dict[str, Any]:
         """Summary: Ingest mock email messages from a fixture.
 
@@ -213,7 +225,7 @@ def create_app(config: AppConfig) -> FastAPI:
         ids = services.ingestion.ingest_messages(messages)
         return {"ingested": len(ids)}
 
-    @app.post("/ingest/calendar-mock")
+    @app.post("/ingest/calendar-mock", dependencies=[Depends(require_api_key)])
     def ingest_calendar_mock(payload: MeetingIngestRequest) -> dict[str, Any]:
         """Summary: Ingest mock meeting data from a fixture.
 
@@ -229,7 +241,7 @@ def create_app(config: AppConfig) -> FastAPI:
         ids = services.meetings.ingest_meetings(meetings)
         return {"ingested": len(ids)}
 
-    @app.get("/messages")
+    @app.get("/messages", dependencies=[Depends(require_api_key)])
     def list_messages(limit: int = 10) -> list[dict[str, Any]]:
         """Summary: List recent messages.
 
@@ -250,7 +262,7 @@ def create_app(config: AppConfig) -> FastAPI:
             for message in services.store.list_messages(limit, user_id=services.user_id)
         ]
 
-    @app.get("/meetings")
+    @app.get("/meetings", dependencies=[Depends(require_api_key)])
     def list_meetings(limit: int = 10) -> list[dict[str, Any]]:
         """Summary: List recent meetings.
 
@@ -271,7 +283,7 @@ def create_app(config: AppConfig) -> FastAPI:
             for meeting in services.meetings.list_meetings(limit)
         ]
 
-    @app.get("/categories")
+    @app.get("/categories", dependencies=[Depends(require_api_key)])
     def list_categories() -> list[dict[str, Any]]:
         """Summary: List existing categories.
 
@@ -284,7 +296,7 @@ def create_app(config: AppConfig) -> FastAPI:
             for category in services.store.list_categories(user_id=services.user_id)
         ]
 
-    @app.post("/categories")
+    @app.post("/categories", dependencies=[Depends(require_api_key)])
     def create_category(payload: CategoryCreateRequest) -> dict[str, Any]:
         """Summary: Create a category.
 
@@ -295,7 +307,7 @@ def create_app(config: AppConfig) -> FastAPI:
         category_id = services.categories.create_category(payload.name, payload.description)
         return {"id": category_id}
 
-    @app.post("/categories/assign")
+    @app.post("/categories/assign", dependencies=[Depends(require_api_key)])
     def assign_category(payload: CategoryAssignRequest) -> dict[str, Any]:
         """Summary: Assign a category to a message.
 
@@ -306,7 +318,7 @@ def create_app(config: AppConfig) -> FastAPI:
         services.categories.assign_category(payload.message_id, payload.category_id)
         return {"status": "ok"}
 
-    @app.post("/categories/suggest")
+    @app.post("/categories/suggest", dependencies=[Depends(require_api_key)])
     def suggest_categories(payload: CategorySuggestRequest) -> list[dict[str, Any]]:
         """Summary: Suggest categories for a stored message.
 
@@ -320,7 +332,7 @@ def create_app(config: AppConfig) -> FastAPI:
             for category in suggestions
         ]
 
-    @app.get("/templates")
+    @app.get("/templates", dependencies=[Depends(require_api_key)])
     def list_category_templates() -> list[dict[str, Any]]:
         """Summary: List available category templates.
 
@@ -333,7 +345,7 @@ def create_app(config: AppConfig) -> FastAPI:
             for template in list_templates()
         ]
 
-    @app.post("/templates/load")
+    @app.post("/templates/load", dependencies=[Depends(require_api_key)])
     def load_category_template(payload: TemplateLoadRequest) -> dict[str, Any]:
         """Summary: Load a template pack into storage.
 
@@ -344,7 +356,7 @@ def create_app(config: AppConfig) -> FastAPI:
         created = load_template(services.store, payload.template_name, user_id=services.user_id)
         return {"created": created}
 
-    @app.post("/chat")
+    @app.post("/chat", dependencies=[Depends(require_api_key)])
     def chat(payload: ChatRequest) -> dict[str, Any]:
         """Summary: Answer a question using stored messages.
 
@@ -355,7 +367,7 @@ def create_app(config: AppConfig) -> FastAPI:
         answer = services.chat.answer(payload.query, limit=payload.limit)
         return {"answer": answer}
 
-    @app.post("/draft")
+    @app.post("/draft", dependencies=[Depends(require_api_key)])
     def draft(payload: DraftRequest) -> dict[str, Any]:
         """Summary: Draft a reply to a message.
 
@@ -366,7 +378,7 @@ def create_app(config: AppConfig) -> FastAPI:
         draft_text = services.chat.draft_reply(payload.message_id, payload.instructions)
         return {"draft": draft_text}
 
-    @app.post("/notes")
+    @app.post("/notes", dependencies=[Depends(require_api_key)])
     def add_note(payload: NoteCreateRequest) -> dict[str, Any]:
         """Summary: Create a note for a message or meeting.
 
@@ -377,7 +389,7 @@ def create_app(config: AppConfig) -> FastAPI:
         note_id = services.chat.add_note(payload.parent_type, payload.parent_id, payload.content)
         return {"id": note_id}
 
-    @app.post("/tasks")
+    @app.post("/tasks", dependencies=[Depends(require_api_key)])
     def add_task(payload: TaskCreateRequest) -> dict[str, Any]:
         """Summary: Create a task for a message or meeting.
 
@@ -388,7 +400,7 @@ def create_app(config: AppConfig) -> FastAPI:
         task_id = services.tasks.add_task(payload.parent_type, payload.parent_id, payload.description)
         return {"id": task_id}
 
-    @app.get("/tasks")
+    @app.get("/tasks", dependencies=[Depends(require_api_key)])
     def list_tasks(parent_type: str, parent_id: int) -> list[dict[str, Any]]:
         """Summary: List tasks for a message or meeting.
 
@@ -408,7 +420,7 @@ def create_app(config: AppConfig) -> FastAPI:
             for task in services.tasks.list_tasks(parent_type, parent_id)
         ]
 
-    @app.post("/tasks/extract")
+    @app.post("/tasks/extract", dependencies=[Depends(require_api_key)])
     def extract_tasks(payload: TaskExtractRequest) -> dict[str, Any]:
         """Summary: Extract tasks from a message using AI.
 
@@ -419,7 +431,7 @@ def create_app(config: AppConfig) -> FastAPI:
         task_ids = services.tasks.extract_tasks_from_message(payload.message_id)
         return {"created": len(task_ids)}
 
-    @app.post("/tasks/extract-meeting")
+    @app.post("/tasks/extract-meeting", dependencies=[Depends(require_api_key)])
     def extract_meeting_tasks(payload: MeetingSummaryRequest) -> dict[str, Any]:
         """Summary: Extract tasks from a meeting transcript.
 
@@ -430,7 +442,7 @@ def create_app(config: AppConfig) -> FastAPI:
         task_ids = services.tasks.extract_tasks_from_meeting(payload.meeting_id)
         return {"created": len(task_ids)}
 
-    @app.post("/meetings/transcript")
+    @app.post("/meetings/transcript", dependencies=[Depends(require_api_key)])
     def add_meeting_transcript(payload: MeetingTranscriptRequest) -> dict[str, Any]:
         """Summary: Store a meeting transcript for summarization.
 
@@ -441,7 +453,7 @@ def create_app(config: AppConfig) -> FastAPI:
         services.meeting_notes.add_transcript(payload.meeting_id, payload.content)
         return {"status": "ok"}
 
-    @app.post("/meetings/summary")
+    @app.post("/meetings/summary", dependencies=[Depends(require_api_key)])
     def summarize_meeting(payload: MeetingSummaryRequest) -> dict[str, Any]:
         """Summary: Summarize a meeting transcript into a note.
 

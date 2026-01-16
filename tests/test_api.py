@@ -36,6 +36,7 @@ def _build_config(db_path: str) -> AppConfig:
         api_port=8000,
         default_user_name="Local User",
         default_user_email="local@inboxpilot",
+        api_key="",
     )
 
 

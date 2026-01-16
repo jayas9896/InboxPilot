@@ -34,6 +34,7 @@ class AppConfig:
     api_port: int
     default_user_name: str
     default_user_email: str
+    api_key: str
 
     @staticmethod
     def from_env() -> "AppConfig":
@@ -64,6 +65,7 @@ class AppConfig:
             default_user_email=os.getenv(
                 "INBOXPILOT_DEFAULT_USER_EMAIL", defaults["default_user_email"]
             ),
+            api_key=os.getenv("INBOXPILOT_API_KEY", defaults["api_key"]),
         )
 
 
