@@ -98,6 +98,10 @@ def build_parser() -> argparse.ArgumentParser:
     list_tasks = subparsers.add_parser("list-tasks", help="List tasks for a message")
     list_tasks.add_argument("message_id", type=int)
 
+    update_task = subparsers.add_parser("update-task", help="Update a task status")
+    update_task.add_argument("task_id", type=int)
+    update_task.add_argument("status", type=str)
+
     extract_tasks = subparsers.add_parser(
         "extract-tasks", help="Extract tasks from a message using AI"
     )
@@ -272,6 +276,11 @@ def run_cli() -> None:
         tasks = services.tasks.list_tasks("message", args.message_id)
         for task in tasks:
             print(f"{task.id}: {task.description} [{task.status}]")
+        return
+
+    if args.command == "update-task":
+        services.tasks.update_task_status(args.task_id, args.status)
+        print("Task updated.")
         return
 
     if args.command == "extract-tasks":

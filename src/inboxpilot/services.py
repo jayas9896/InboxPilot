@@ -445,6 +445,16 @@ class TaskService:
 
         return self.store.list_tasks(parent_type, parent_id, user_id=self.user_id)
 
+    def update_task_status(self, task_id: int, status: str) -> None:
+        """Summary: Update a task status.
+
+        Importance: Allows marking follow-ups as completed or deferred.
+        Alternatives: Recreate tasks with new statuses.
+        """
+
+        self.store.update_task_status(task_id, status, user_id=self.user_id)
+        logger.info("Updated task %s to %s.", task_id, status)
+
     def extract_tasks_from_message(self, message_id: int) -> list[int]:
         """Summary: Extract action items from a message using AI.
 

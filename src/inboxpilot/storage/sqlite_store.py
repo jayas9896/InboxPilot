@@ -823,6 +823,24 @@ class SqliteStore:
             rows = cursor.fetchall()
         return [StoredTask(*row) for row in rows]
 
+    def update_task_status(self, task_id: int, status: str, user_id: int | None = None) -> None:
+        """Summary: Update the status of a task.
+
+        Importance: Allows tracking completion of action items.
+        Alternatives: Store task status changes in notes.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute("UPDATE tasks SET status = ? WHERE id = ?", (status, task_id))
+            else:
+                cursor.execute(
+                    "UPDATE tasks SET status = ? WHERE id = ? AND user_id = ?",
+                    (status, task_id, user_id),
+                )
+            connection_db.commit()
+
     def save_meeting_transcript(self, meeting_id: int, content: str) -> None:
         """Summary: Save or update a meeting transcript.
 

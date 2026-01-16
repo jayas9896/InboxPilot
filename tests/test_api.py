@@ -150,6 +150,9 @@ def test_api_tasks(tmp_path: Path) -> None:
         json={"parent_type": "message", "parent_id": 1, "description": "Follow up"},
     )
     assert task_response.status_code == 200
+    task_id = task_response.json()["id"]
+    update_response = client.post("/tasks/update", json={"task_id": task_id, "status": "done"})
+    assert update_response.status_code == 200
     list_response = client.get("/tasks", params={"parent_type": "message", "parent_id": 1})
     assert list_response.status_code == 200
     assert list_response.json()[0]["description"] == "Follow up"

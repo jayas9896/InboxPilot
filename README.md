@@ -37,6 +37,7 @@ python -m inboxpilot.cli chat "What emails need follow up?"
 python -m inboxpilot.cli draft 1 "Thank them and ask for availability"
 python -m inboxpilot.cli add-task 1 "Send revised deck"
 python -m inboxpilot.cli list-tasks 1
+python -m inboxpilot.cli update-task 1 done
 python -m inboxpilot.cli extract-tasks 1
 python -m inboxpilot.cli add-meeting-transcript 1 "We agreed to ship on Friday."
 python -m inboxpilot.cli summarize-meeting 1
@@ -79,6 +80,7 @@ curl http://127.0.0.1:8000/triage
 curl -X POST http://127.0.0.1:8000/messages/summary -H "Content-Type: application/json" -d "{\"message_id\":1}"
 curl -X POST http://127.0.0.1:8000/messages/follow-up -H "Content-Type: application/json" -d "{\"message_id\":1}"
 curl "http://127.0.0.1:8000/oauth/callback?provider=google&code=demo&state=STATE_FROM_OAUTH"
+curl -X POST http://127.0.0.1:8000/tasks/update -H "Content-Type: application/json" -d "{\"task_id\":1,\"status\":\"done\"}"
 ```
 
 ### Run with IMAP (Read-only)

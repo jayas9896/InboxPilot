@@ -165,6 +165,17 @@ class TaskCreateRequest(BaseModel):
     description: str
 
 
+class TaskUpdateRequest(BaseModel):
+    """Summary: Request payload for task status updates.
+
+    Importance: Enables marking tasks as completed or deferred via the API.
+    Alternatives: Delete and recreate tasks with new status.
+    """
+
+    task_id: int
+    status: str
+
+
 class TaskExtractRequest(BaseModel):
     """Summary: Request payload for task extraction.
 
@@ -546,6 +557,17 @@ def create_app(config: AppConfig) -> FastAPI:
 
         task_id = services.tasks.add_task(payload.parent_type, payload.parent_id, payload.description)
         return {"id": task_id}
+
+    @app.post("/tasks/update", dependencies=[Depends(require_api_key)])
+    def update_task(payload: TaskUpdateRequest) -> dict[str, Any]:
+        """Summary: Update task status.
+
+        Importance: Supports task completion workflows.
+        Alternatives: Use a separate task management system.
+        """
+
+        services.tasks.update_task_status(payload.task_id, payload.status)
+        return {"status": "ok"}
 
     @app.get("/tasks", dependencies=[Depends(require_api_key)])
     def list_tasks(parent_type: str, parent_id: int) -> list[dict[str, Any]]:

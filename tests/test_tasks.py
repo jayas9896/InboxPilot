@@ -49,6 +49,9 @@ def test_task_storage(tmp_path: Path) -> None:
     tasks = store.list_tasks("message", 1, user_id=user_id)
     assert task_id > 0
     assert tasks[0].description == "Follow up"
+    store.update_task_status(task_id, "done", user_id=user_id)
+    tasks = store.list_tasks("message", 1, user_id=user_id)
+    assert tasks[0].status == "done"
 
 
 def test_task_extraction_creates_tasks(tmp_path: Path) -> None:
