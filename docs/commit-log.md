@@ -31,3 +31,4 @@ CL-0028 | CLI note/task parent support | 2026-01-15 | Added parent_type/parent_i
 CL-0029 | Transcript file ingest | 2026-01-15 | Added transcript file ingestion for meetings.
 CL-0030 | AI audit listing | 2026-01-15 | Added AI request/response listing endpoints.
 CL-0031 | Expanded templates | 2026-01-15 | Added real estate, sales, and personal life templates.
+CL-0032 | MVP status checklist | 2026-01-15 | Documented MVP completion checklist and gaps.
