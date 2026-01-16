@@ -399,6 +399,19 @@ def test_api_message_insights(tmp_path: Path) -> None:
     assert follow_up_response.status_code == 200
 
 
+def test_api_ai_audit(tmp_path: Path) -> None:
+    """Summary: Verify AI audit endpoints respond.
+
+    Importance: Ensures AI audit data is exposed via the API.
+    Alternatives: Use database access for audits.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    response = client.get("/ai/requests")
+    assert response.status_code == 200
+
+
 def test_api_oauth_callback(tmp_path: Path) -> None:
     """Summary: Verify OAuth callback records a connection.
 

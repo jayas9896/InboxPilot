@@ -54,6 +54,8 @@ python -m inboxpilot.cli triage --limit 10
 python -m inboxpilot.cli summarize-message 1
 python -m inboxpilot.cli suggest-follow-up 1
 python -m inboxpilot.cli store-token google ACCESS_TOKEN --refresh-token REFRESH_TOKEN
+python -m inboxpilot.cli list-ai-requests --limit 5
+python -m inboxpilot.cli list-ai-responses --limit 5
 python -m inboxpilot.cli oauth-google
 python -m inboxpilot.cli oauth-microsoft
 ```
@@ -90,6 +92,8 @@ curl "http://127.0.0.1:8000/oauth/callback?provider=google&code=demo&state=STATE
 curl -X POST http://127.0.0.1:8000/tasks/update -H "Content-Type: application/json" -d "{\"task_id\":1,\"status\":\"done\"}"
 curl -X POST http://127.0.0.1:8000/tokens -H "Content-Type: application/json" -d "{\"provider_name\":\"google\",\"access_token\":\"ACCESS\",\"refresh_token\":\"REFRESH\"}"
 curl -X POST http://127.0.0.1:8000/meetings/transcript-file -H "Content-Type: application/json" -d "{\"meeting_id\":1,\"path\":\"C:\\\\path\\\\to\\\\transcript.txt\"}"
+curl http://127.0.0.1:8000/ai/requests
+curl http://127.0.0.1:8000/ai/responses
 ```
 
 ### Run with IMAP (Read-only)

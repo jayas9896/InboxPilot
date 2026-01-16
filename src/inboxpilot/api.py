@@ -607,6 +607,26 @@ def create_app(config: AppConfig) -> FastAPI:
         )
         return {"id": token_id}
 
+    @app.get("/ai/requests", dependencies=[Depends(require_api_key)])
+    def list_ai_requests(limit: int = 20) -> list[dict[str, Any]]:
+        """Summary: List AI requests for auditing.
+
+        Importance: Enables prompt and usage review.
+        Alternatives: Rely on database access only.
+        """
+
+        return services.ai_audit.list_requests(limit=limit)
+
+    @app.get("/ai/responses", dependencies=[Depends(require_api_key)])
+    def list_ai_responses(limit: int = 20) -> list[dict[str, Any]]:
+        """Summary: List AI responses for auditing.
+
+        Importance: Enables output and latency review.
+        Alternatives: Use logs only for auditing.
+        """
+
+        return services.ai_audit.list_responses(limit=limit)
+
     @app.post("/notes", dependencies=[Depends(require_api_key)])
     def add_note(payload: NoteCreateRequest) -> dict[str, Any]:
         """Summary: Create a note for a message or meeting.

@@ -739,6 +739,55 @@ class StatsService:
 
 
 @dataclass(frozen=True)
+class AiAuditService:
+    """Summary: Provides access to AI audit logs.
+
+    Importance: Enables review of AI usage and outputs.
+    Alternatives: Use raw database queries or log files.
+    """
+
+    store: SqliteStore
+    user_id: int
+
+    def list_requests(self, limit: int = 20) -> list[dict[str, str | int]]:
+        """Summary: Return recent AI requests for the user.
+
+        Importance: Supports auditing prompts and purposes.
+        Alternatives: Skip AI request storage.
+        """
+
+        requests = self.store.list_ai_requests(limit, user_id=self.user_id)
+        return [
+            {
+                "id": request.id,
+                "provider": request.provider,
+                "model": request.model,
+                "purpose": request.purpose,
+                "timestamp": request.timestamp,
+            }
+            for request in requests
+        ]
+
+    def list_responses(self, limit: int = 20) -> list[dict[str, str | int]]:
+        """Summary: Return recent AI responses.
+
+        Importance: Supports auditing outputs and latency.
+        Alternatives: Skip AI response storage.
+        """
+
+        responses = self.store.list_ai_responses(limit)
+        return [
+            {
+                "id": response.id,
+                "request_id": response.request_id,
+                "latency_ms": response.latency_ms,
+                "token_estimate": response.token_estimate,
+            }
+            for response in responses
+        ]
+
+
+@dataclass(frozen=True)
 class TriageService:
     """Summary: Provides priority ranking for messages.
 

@@ -162,6 +162,12 @@ def build_parser() -> argparse.ArgumentParser:
     store_token.add_argument("--refresh-token", type=str, default=None)
     store_token.add_argument("--expires-at", type=str, default=None)
 
+    list_ai_requests = subparsers.add_parser("list-ai-requests", help="List AI requests")
+    list_ai_requests.add_argument("--limit", type=int, default=20)
+
+    list_ai_responses = subparsers.add_parser("list-ai-responses", help="List AI responses")
+    list_ai_responses.add_argument("--limit", type=int, default=20)
+
     subparsers.add_parser("oauth-google", help="Print Google OAuth URL")
     subparsers.add_parser("oauth-microsoft", help="Print Microsoft OAuth URL")
 
@@ -388,6 +394,24 @@ def run_cli() -> None:
             args.provider_name, args.access_token, args.refresh_token, args.expires_at
         )
         print(f"Stored token {token_id}.")
+        return
+
+    if args.command == "list-ai-requests":
+        requests = services.ai_audit.list_requests(limit=args.limit)
+        for request in requests:
+            print(
+                f"{request['id']}: {request['provider']} {request['model']} "
+                f"{request['purpose']} {request['timestamp']}"
+            )
+        return
+
+    if args.command == "list-ai-responses":
+        responses = services.ai_audit.list_responses(limit=args.limit)
+        for response in responses:
+            print(
+                f"{response['id']}: request {response['request_id']} "
+                f"latency {response['latency_ms']}ms tokens {response['token_estimate']}"
+            )
         return
 
     if args.command == "oauth-google":

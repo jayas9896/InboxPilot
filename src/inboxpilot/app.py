@@ -20,6 +20,7 @@ from inboxpilot.services import (
     MessageInsightsService,
     MeetingService,
     MeetingSummaryService,
+    AiAuditService,
     StatsService,
     TriageService,
     TokenService,
@@ -48,6 +49,7 @@ class AppServices:
     triage: TriageService
     message_insights: MessageInsightsService
     tokens: TokenService
+    ai_audit: AiAuditService
     store: SqliteStore
     user_id: int
 
@@ -118,6 +120,7 @@ def build_services(config: AppConfig) -> AppServices:
         user_id=user_id,
     )
     tokens = TokenService(store=store, user_id=user_id, codec=TokenCodec(config.token_secret))
+    ai_audit = AiAuditService(store=store, user_id=user_id)
     return AppServices(
         ingestion=ingestion,
         meetings=meetings,
@@ -130,6 +133,7 @@ def build_services(config: AppConfig) -> AppServices:
         triage=triage,
         message_insights=message_insights,
         tokens=tokens,
+        ai_audit=ai_audit,
         store=store,
         user_id=user_id,
     )

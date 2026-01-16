@@ -45,6 +45,38 @@ class StoredMessage:
 
 
 @dataclass(frozen=True)
+class StoredAiRequest:
+    """Summary: AI request record with database identifier.
+
+    Importance: Supports AI audit views and troubleshooting.
+    Alternatives: Use logs only for AI audit trails.
+    """
+
+    id: int
+    user_id: int | None
+    provider: str
+    model: str
+    prompt: str
+    purpose: str
+    timestamp: str
+
+
+@dataclass(frozen=True)
+class StoredAiResponse:
+    """Summary: AI response record with database identifier.
+
+    Importance: Supports AI audit views and latency tracking.
+    Alternatives: Store responses only in logs.
+    """
+
+    id: int
+    request_id: int
+    response_text: str
+    latency_ms: int
+    token_estimate: int
+
+
+@dataclass(frozen=True)
 class StoredCategory:
     """Summary: Category record with database identifier.
 
@@ -1074,6 +1106,62 @@ class SqliteStore:
             response_id = cursor.lastrowid
             connection.commit()
         return int(response_id)
+
+    def list_ai_requests(
+        self, limit: int, user_id: int | None = None
+    ) -> list[StoredAiRequest]:
+        """Summary: List recent AI requests.
+
+        Importance: Enables audit views for AI usage.
+        Alternatives: Use log files only.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, provider, model, prompt, purpose, timestamp
+                    FROM ai_requests
+                    ORDER BY id DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, provider, model, prompt, purpose, timestamp
+                    FROM ai_requests
+                    WHERE user_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    """,
+                    (user_id, limit),
+                )
+            rows = cursor.fetchall()
+        return [StoredAiRequest(*row) for row in rows]
+
+    def list_ai_responses(self, limit: int) -> list[StoredAiResponse]:
+        """Summary: List recent AI responses.
+
+        Importance: Enables audit views for AI outputs.
+        Alternatives: Use log files only.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                """
+                SELECT id, request_id, response_text, latency_ms, token_estimate
+                FROM ai_responses
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+        return [StoredAiResponse(*row) for row in rows]
 
     def _ensure_column(self, table: str, column: str) -> None:
         """Summary: Ensure a column exists in a table.
