@@ -20,7 +20,7 @@ from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
 from inboxpilot.email import EmlEmailProvider, MockEmailProvider
-from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url, create_state_token
+from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url, create_state_token, exchange_oauth_code
 
 
 class IngestRequest(BaseModel):
@@ -834,26 +834,32 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.get("/oauth/callback", response_class=HTMLResponse)
     def oauth_callback(provider: str, code: str, state: str) -> str:
-        """Summary: Handle OAuth callback and record a connection.
+        """Summary: Handle OAuth callback, exchange tokens, and record a connection.
 
-        Importance: Completes OAuth flow tracking without storing secrets.
-        Alternatives: Implement full token exchange and storage.
+        Importance: Completes OAuth flows by retrieving and storing access tokens.
+        Alternatives: Defer token exchange to a background worker.
         """
 
         if provider not in {"google", "microsoft"}:
             raise HTTPException(status_code=400, detail="Unknown provider")
         _validate_state(provider, state)
+        try:
+            token_result = exchange_oauth_code(config, provider, code)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         services.connections.add_connection(
             provider_type="oauth",
             provider_name=provider,
             status="authorized",
-            details="auth_code_received",
+            details="token_exchange_complete",
         )
         services.tokens.store_tokens(
             provider_name=provider,
-            access_token=code,
-            refresh_token=None,
-            expires_at=(datetime.utcnow() + timedelta(hours=1)).isoformat(),
+            access_token=token_result.access_token,
+            refresh_token=token_result.refresh_token,
+            expires_at=token_result.expires_at,
         )
         return "<h1>InboxPilot OAuth connected</h1><p>You can close this window.</p>"
 

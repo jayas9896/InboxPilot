@@ -11,11 +11,12 @@
 - [x] Meeting notes created from pasted or file-based transcripts.
 - [x] Local setup documented with a path to private cloud migration.
 - [x] AI abstraction layer supports local and cloud providers.
+- [x] OAuth token exchange for Google/Microsoft providers.
 - [x] Static analysis and tests configured for core logic.
 - [x] Git discipline with CL logs.
 
 ## Known Gaps / Next Steps
-- OAuth token exchange and refresh for Google/Microsoft providers.
+- OAuth token refresh for Google/Microsoft providers.
 - Provider ingestion via OAuth (Gmail/Outlook) beyond IMAP/.eml.
 - Multi-user auth and per-user API tokens.
 - Replace token obfuscation with a real secrets manager for production.

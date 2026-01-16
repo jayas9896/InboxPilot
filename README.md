@@ -121,8 +121,9 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - Set `INBOXPILOT_API_KEY` to require `X-API-Key` for API requests.
 - OAuth client IDs and secrets live in `.env` as `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
 - Set `INBOXPILOT_OAUTH_REDIRECT_URI` to match your OAuth app redirect URL.
+- Token endpoint URLs can be overridden with `INBOXPILOT_GOOGLE_TOKEN_URL` and `INBOXPILOT_MICROSOFT_TOKEN_URL`.
 - Triage keywords can be customized with `INBOXPILOT_TRIAGE_HIGH_KEYWORDS` and `INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS`.
-- OAuth callback at `/oauth/callback` records a connection and stores the auth code as a placeholder access token (replace with real exchange in production).
+- OAuth callback at `/oauth/callback` exchanges the auth code for access and refresh tokens and stores them.
 - Store tokens using `INBOXPILOT_TOKEN_SECRET` (obfuscation only; replace with a real vault for production).
 
 ## Categories

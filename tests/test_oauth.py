@@ -7,7 +7,11 @@ Alternatives: Validate OAuth flows manually.
 from __future__ import annotations
 
 from inboxpilot.config import AppConfig
-from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url
+from inboxpilot.oauth import (
+    build_google_auth_url,
+    build_microsoft_auth_url,
+    _token_payload,
+)
 
 
 def _config() -> AppConfig:
@@ -28,10 +32,12 @@ def _config() -> AppConfig:
         default_user_email="local@inboxpilot",
         api_key="",
         google_client_id="google-client",
-        google_client_secret="",
+        google_client_secret="google-secret",
         microsoft_client_id="ms-client",
-        microsoft_client_secret="",
+        microsoft_client_secret="ms-secret",
         oauth_redirect_uri="http://localhost:8000/oauth/callback",
+        google_token_url="https://oauth2.googleapis.com/token",
+        microsoft_token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
         triage_high_keywords=["urgent"],
         triage_medium_keywords=["review"],
         token_secret="secret",
@@ -46,3 +52,13 @@ def test_google_auth_url_includes_client_id() -> None:
 def test_microsoft_auth_url_includes_client_id() -> None:
     url = build_microsoft_auth_url(_config(), "state123")
     assert "ms-client" in url
+
+
+def test_google_token_payload_includes_redirect_uri() -> None:
+    payload = _token_payload(_config(), "google", "code123")
+    assert payload["redirect_uri"] == "http://localhost:8000/oauth/callback"
+
+
+def test_microsoft_token_payload_includes_scope() -> None:
+    payload = _token_payload(_config(), "microsoft", "code123")
+    assert "scope" in payload

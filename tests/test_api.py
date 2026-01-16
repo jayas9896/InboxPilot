@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from fastapi.testclient import TestClient
 
 from inboxpilot.api import create_app
@@ -42,6 +44,8 @@ def _build_config(db_path: str) -> AppConfig:
         microsoft_client_id="",
         microsoft_client_secret="",
         oauth_redirect_uri="http://localhost:8000/oauth/callback",
+        google_token_url="https://oauth2.googleapis.com/token",
+        microsoft_token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
         triage_high_keywords=["urgent"],
         triage_medium_keywords=["review"],
         token_secret="secret",
@@ -412,13 +416,25 @@ def test_api_ai_audit(tmp_path: Path) -> None:
     assert response.status_code == 200
 
 
-def test_api_oauth_callback(tmp_path: Path) -> None:
+def test_api_oauth_callback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Summary: Verify OAuth callback records a connection.
 
     Importance: Ensures OAuth flow tracking is functional.
     Alternatives: Skip callback handling until token exchange is added.
     """
 
+    from inboxpilot.oauth import OAuthTokenResult
+
+    def _fake_exchange(*_args: object, **_kwargs: object) -> OAuthTokenResult:
+        return OAuthTokenResult(
+            access_token="token",
+            refresh_token="refresh",
+            expires_at=None,
+            token_type="Bearer",
+            raw={"access_token": "token"},
+        )
+
+    monkeypatch.setattr("inboxpilot.api.exchange_oauth_code", _fake_exchange)
     config = _build_config(str(tmp_path / "test.db"))
     client = TestClient(create_app(config))
     oauth_response = client.get("/oauth/google")
