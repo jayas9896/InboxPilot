@@ -32,6 +32,8 @@ def _config() -> AppConfig:
         microsoft_client_id="ms-client",
         microsoft_client_secret="",
         oauth_redirect_uri="http://localhost:8000/oauth/callback",
+        triage_high_keywords=["urgent"],
+        triage_medium_keywords=["review"],
     )
 
 

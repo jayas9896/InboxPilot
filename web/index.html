@@ -241,6 +241,12 @@
         <button id="loadStats">Refresh Stats</button>
         <div class="list" id="statsList"></div>
       </div>
+
+      <div class="card">
+        <h2>Triage</h2>
+        <button id="loadTriage">Refresh Triage</button>
+        <div class="list" id="triageList"></div>
+      </div>
     </section>
 
     <script>
@@ -415,6 +421,14 @@
         const items = Object.entries(payload).map(([key, value]) => ({ key, value }));
         renderList(document.getElementById("statsList"), items, (item) => {
           return `${item.key}: ${item.value}`;
+        });
+      });
+
+      document.getElementById("loadTriage").addEventListener("click", async () => {
+        const response = await fetch(`${api}/triage`, { headers: authHeaders() });
+        const payload = await response.json();
+        renderList(document.getElementById("triageList"), payload, (item) => {
+          return `${item.priority}: #${item.id} ${item.subject}`;
         });
       });
     </script>

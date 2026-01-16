@@ -45,6 +45,7 @@ python -m inboxpilot.cli list-notes message 1
 python -m inboxpilot.cli add-connection email gmail connected --details "read-only"
 python -m inboxpilot.cli list-connections
 python -m inboxpilot.cli stats
+python -m inboxpilot.cli triage --limit 10
 python -m inboxpilot.cli oauth-google
 python -m inboxpilot.cli oauth-microsoft
 ```
@@ -72,6 +73,7 @@ curl -X POST http://127.0.0.1:8000/ingest/eml -H "Content-Type: application/json
 curl http://127.0.0.1:8000/notes?parent_type=message&parent_id=1
 curl http://127.0.0.1:8000/oauth/google
 curl http://127.0.0.1:8000/oauth/microsoft
+curl http://127.0.0.1:8000/triage
 ```
 
 ### Run with IMAP (Read-only)
@@ -99,6 +101,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - Set `INBOXPILOT_API_KEY` to require `X-API-Key` for API requests.
 - OAuth client IDs and secrets live in `.env` as `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
 - Set `INBOXPILOT_OAUTH_REDIRECT_URI` to match your OAuth app redirect URL.
+- Triage keywords can be customized with `INBOXPILOT_TRIAGE_HIGH_KEYWORDS` and `INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS`.
 
 ## Categories
 - Categories are first-class objects stored in SQLite.

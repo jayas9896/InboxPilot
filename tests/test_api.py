@@ -42,6 +42,8 @@ def _build_config(db_path: str) -> AppConfig:
         microsoft_client_id="",
         microsoft_client_secret="",
         oauth_redirect_uri="http://localhost:8000/oauth/callback",
+        triage_high_keywords=["urgent"],
+        triage_medium_keywords=["review"],
     )
 
 
@@ -228,6 +230,38 @@ def test_api_stats(tmp_path: Path) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert "messages" in payload
+
+
+def test_api_triage(tmp_path: Path) -> None:
+    """Summary: Verify triage endpoint returns prioritized messages.
+
+    Importance: Ensures triage data is available to the UI.
+    Alternatives: Compute triage client-side only.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    fixture = tmp_path / "mock_messages.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_message_id": "triage-1",
+            "subject": "Urgent follow up",
+            "sender": "boss@example.com",
+            "recipients": "you@example.com",
+            "timestamp": "2026-01-15T10:00:00",
+            "snippet": "Urgent follow up",
+            "body": "Action required ASAP."
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    client.post("/ingest/mock", json={"limit": 1, "fixture_path": str(fixture)})
+    response = client.get("/triage")
+    assert response.status_code == 200
+    assert response.json()[0]["priority"] in {"high", "medium", "low"}
 
 
 def test_api_notes(tmp_path: Path) -> None:

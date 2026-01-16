@@ -40,6 +40,8 @@ class AppConfig:
     microsoft_client_id: str
     microsoft_client_secret: str
     oauth_redirect_uri: str
+    triage_high_keywords: list[str]
+    triage_medium_keywords: list[str]
 
     @staticmethod
     def from_env() -> "AppConfig":
@@ -80,7 +82,25 @@ class AppConfig:
             oauth_redirect_uri=os.getenv(
                 "INBOXPILOT_OAUTH_REDIRECT_URI", defaults["oauth_redirect_uri"]
             ),
+            triage_high_keywords=_parse_csv(
+                os.getenv("INBOXPILOT_TRIAGE_HIGH_KEYWORDS", defaults["triage_high_keywords"])
+            ),
+            triage_medium_keywords=_parse_csv(
+                os.getenv(
+                    "INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS", defaults["triage_medium_keywords"]
+                )
+            ),
         )
+
+
+def _parse_csv(value: str) -> list[str]:
+    """Summary: Parse a comma-separated string into a list.
+
+    Importance: Normalizes simple list configuration values.
+    Alternatives: Use JSON arrays in config defaults.
+    """
+
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def load_defaults(path: Path) -> dict[str, str]:

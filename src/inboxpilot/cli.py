@@ -126,6 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list-connections", help="List integration records")
 
     subparsers.add_parser("stats", help="Show inbox statistics")
+    triage = subparsers.add_parser("triage", help="Show prioritized messages")
+    triage.add_argument("--limit", type=int, default=20)
 
     subparsers.add_parser("oauth-google", help="Print Google OAuth URL")
     subparsers.add_parser("oauth-microsoft", help="Print Microsoft OAuth URL")
@@ -305,6 +307,12 @@ def run_cli() -> None:
         snapshot = services.stats.snapshot()
         for key, value in snapshot.items():
             print(f"{key}: {value}")
+        return
+
+    if args.command == "triage":
+        ranked = services.triage.rank_messages(limit=args.limit)
+        for item in ranked:
+            print(f"{item['priority']}: #{item['id']} {item['subject']} ({item['sender']})")
         return
 
     if args.command == "oauth-google":

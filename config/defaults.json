@@ -18,5 +18,7 @@
   "google_client_secret": "",
   "microsoft_client_id": "",
   "microsoft_client_secret": "",
-  "oauth_redirect_uri": "http://localhost:8000/oauth/callback"
+  "oauth_redirect_uri": "http://localhost:8000/oauth/callback",
+  "triage_high_keywords": "urgent,asap,action required,deadline,follow up",
+  "triage_medium_keywords": "review,request,question,update,meeting"
 }

@@ -559,3 +559,45 @@ class StatsService:
             "notes": self.store.count_notes(user_id=self.user_id),
             "connections": self.store.count_connections(user_id=self.user_id),
         }
+
+
+@dataclass(frozen=True)
+class TriageService:
+    """Summary: Provides priority ranking for messages.
+
+    Importance: Enables smart inbox triage for the MVP.
+    Alternatives: Use ML classifiers or user-defined rules only.
+    """
+
+    store: SqliteStore
+    user_id: int
+    high_keywords: list[str]
+    medium_keywords: list[str]
+
+    def rank_messages(self, limit: int = 20) -> list[dict[str, str | int]]:
+        """Summary: Rank messages by simple keyword heuristics.
+
+        Importance: Surfaces urgent messages for review.
+        Alternatives: Use AI-based priority scoring.
+        """
+
+        messages = self.store.list_messages(limit, user_id=self.user_id)
+        ranked: list[dict[str, str | int]] = []
+        for message in messages:
+            text = f"{message.subject} {message.body}".lower()
+            score = 0
+            if any(keyword in text for keyword in self.high_keywords):
+                score += 2
+            if any(keyword in text for keyword in self.medium_keywords):
+                score += 1
+            priority = "high" if score >= 2 else "medium" if score == 1 else "low"
+            ranked.append(
+                {
+                    "id": message.id,
+                    "subject": message.subject,
+                    "sender": message.sender,
+                    "priority": priority,
+                    "score": score,
+                }
+            )
+        return ranked

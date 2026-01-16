@@ -591,6 +591,16 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return services.stats.snapshot()
 
+    @app.get("/triage", dependencies=[Depends(require_api_key)])
+    def triage(limit: int = 20) -> list[dict[str, Any]]:
+        """Summary: Return prioritized messages.
+
+        Importance: Supports inbox triage views in the UI.
+        Alternatives: Use AI-based scoring or rules-only filters.
+        """
+
+        return services.triage.rank_messages(limit=limit)
+
     @app.get("/oauth/google", dependencies=[Depends(require_api_key)])
     def oauth_google() -> dict[str, str]:
         """Summary: Return the Google OAuth authorization URL.

@@ -20,6 +20,7 @@ from inboxpilot.services import (
     MeetingService,
     MeetingSummaryService,
     StatsService,
+    TriageService,
     TaskService,
 )
 from inboxpilot.storage.sqlite_store import SqliteStore
@@ -41,6 +42,7 @@ class AppServices:
     meeting_notes: MeetingSummaryService
     connections: ConnectionService
     stats: StatsService
+    triage: TriageService
     store: SqliteStore
     user_id: int
 
@@ -97,6 +99,12 @@ def build_services(config: AppConfig) -> AppServices:
     )
     connections = ConnectionService(store=store, user_id=user_id)
     stats = StatsService(store=store, user_id=user_id)
+    triage = TriageService(
+        store=store,
+        user_id=user_id,
+        high_keywords=config.triage_high_keywords,
+        medium_keywords=config.triage_medium_keywords,
+    )
     return AppServices(
         ingestion=ingestion,
         meetings=meetings,
@@ -106,6 +114,7 @@ def build_services(config: AppConfig) -> AppServices:
         meeting_notes=meeting_notes,
         connections=connections,
         stats=stats,
+        triage=triage,
         store=store,
         user_id=user_id,
     )
