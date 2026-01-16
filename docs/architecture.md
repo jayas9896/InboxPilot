@@ -22,6 +22,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - Analytics Snapshot: Lightweight counts for messages, meetings, categories, tasks, and notes.
 - OAuth Helpers: Provider authorization URL generation for Gmail and Microsoft Graph.
 - Triage Engine: Keyword-based priority scoring for inbox triage.
+- Message Insights: AI summaries and follow-up suggestions stored as notes.
 
 ## Data Flow
 1. User connects an email provider in read-only mode.

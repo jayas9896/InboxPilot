@@ -17,6 +17,7 @@ from inboxpilot.services import (
     ChatService,
     ConnectionService,
     IngestionService,
+    MessageInsightsService,
     MeetingService,
     MeetingSummaryService,
     StatsService,
@@ -43,6 +44,7 @@ class AppServices:
     connections: ConnectionService
     stats: StatsService
     triage: TriageService
+    message_insights: MessageInsightsService
     store: SqliteStore
     user_id: int
 
@@ -105,6 +107,13 @@ def build_services(config: AppConfig) -> AppServices:
         high_keywords=config.triage_high_keywords,
         medium_keywords=config.triage_medium_keywords,
     )
+    message_insights = MessageInsightsService(
+        store=store,
+        ai_provider=ai_provider,
+        provider_name=config.ai_provider,
+        model_name=model_name,
+        user_id=user_id,
+    )
     return AppServices(
         ingestion=ingestion,
         meetings=meetings,
@@ -115,6 +124,7 @@ def build_services(config: AppConfig) -> AppServices:
         connections=connections,
         stats=stats,
         triage=triage,
+        message_insights=message_insights,
         store=store,
         user_id=user_id,
     )

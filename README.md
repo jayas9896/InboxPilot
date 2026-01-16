@@ -46,6 +46,8 @@ python -m inboxpilot.cli add-connection email gmail connected --details "read-on
 python -m inboxpilot.cli list-connections
 python -m inboxpilot.cli stats
 python -m inboxpilot.cli triage --limit 10
+python -m inboxpilot.cli summarize-message 1
+python -m inboxpilot.cli suggest-follow-up 1
 python -m inboxpilot.cli oauth-google
 python -m inboxpilot.cli oauth-microsoft
 ```
@@ -74,6 +76,8 @@ curl http://127.0.0.1:8000/notes?parent_type=message&parent_id=1
 curl http://127.0.0.1:8000/oauth/google
 curl http://127.0.0.1:8000/oauth/microsoft
 curl http://127.0.0.1:8000/triage
+curl -X POST http://127.0.0.1:8000/messages/summary -H "Content-Type: application/json" -d "{\"message_id\":1}"
+curl -X POST http://127.0.0.1:8000/messages/follow-up -H "Content-Type: application/json" -d "{\"message_id\":1}"
 ```
 
 ### Run with IMAP (Read-only)

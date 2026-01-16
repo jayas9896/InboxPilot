@@ -129,6 +129,12 @@ def build_parser() -> argparse.ArgumentParser:
     triage = subparsers.add_parser("triage", help="Show prioritized messages")
     triage.add_argument("--limit", type=int, default=20)
 
+    summarize_message = subparsers.add_parser("summarize-message", help="Summarize a message")
+    summarize_message.add_argument("message_id", type=int)
+
+    follow_up = subparsers.add_parser("suggest-follow-up", help="Suggest a follow-up action")
+    follow_up.add_argument("message_id", type=int)
+
     subparsers.add_parser("oauth-google", help="Print Google OAuth URL")
     subparsers.add_parser("oauth-microsoft", help="Print Microsoft OAuth URL")
 
@@ -313,6 +319,16 @@ def run_cli() -> None:
         ranked = services.triage.rank_messages(limit=args.limit)
         for item in ranked:
             print(f"{item['priority']}: #{item['id']} {item['subject']} ({item['sender']})")
+        return
+
+    if args.command == "summarize-message":
+        note_id = services.message_insights.summarize_message(args.message_id)
+        print(f"Created message summary note {note_id}.")
+        return
+
+    if args.command == "suggest-follow-up":
+        suggestion = services.message_insights.suggest_follow_up(args.message_id)
+        print(suggestion)
         return
 
     if args.command == "oauth-google":

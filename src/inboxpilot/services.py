@@ -321,6 +321,97 @@ class ChatService:
 
 
 @dataclass(frozen=True)
+class MessageInsightsService:
+    """Summary: Provides summaries and follow-up suggestions for messages.
+
+    Importance: Enables explainability and follow-up guidance for inbox workflows.
+    Alternatives: Use ChatService only or rely on manual review.
+    """
+
+    store: SqliteStore
+    ai_provider: AiProvider
+    provider_name: str
+    model_name: str
+    user_id: int
+
+    def summarize_message(self, message_id: int) -> int:
+        """Summary: Summarize a message and store it as a note.
+
+        Importance: Captures concise context for future review and follow-ups.
+        Alternatives: Require users to add notes manually.
+        """
+
+        message = self.store.get_message(message_id, user_id=self.user_id)
+        if not message:
+            raise ValueError(f"Message {message_id} not found")
+        prompt = (
+            "Summarize the email with key points and any requested actions.\n\n"
+            f"From: {message.sender}\n"
+            f"Subject: {message.subject}\n"
+            f"Body: {message.body}\n"
+        )
+        response_text, latency_ms = self.ai_provider.generate_text(
+            prompt, purpose="message_summary"
+        )
+        request = AiRequest(
+            provider=self.provider_name,
+            model=self.model_name,
+            prompt=prompt,
+            purpose="message_summary",
+            timestamp=datetime.utcnow(),
+        )
+        request_id = self.store.log_ai_request(request, user_id=self.user_id)
+        response = AiResponse(
+            request_id=request_id,
+            response_text=response_text,
+            latency_ms=latency_ms,
+            token_estimate=estimate_tokens(response_text),
+        )
+        self.store.log_ai_response(response)
+        note = Note(parent_type="message", parent_id=message_id, content=response_text)
+        note_id = self.store.add_note(note, user_id=self.user_id)
+        logger.info("Created message summary for message %s.", message_id)
+        return note_id
+
+    def suggest_follow_up(self, message_id: int) -> str:
+        """Summary: Suggest a follow-up for a message.
+
+        Importance: Guides users to act on pending conversations.
+        Alternatives: Provide no suggestions or use manual notes only.
+        """
+
+        message = self.store.get_message(message_id, user_id=self.user_id)
+        if not message:
+            raise ValueError(f"Message {message_id} not found")
+        prompt = (
+            "Suggest a follow-up action for the email. Keep it brief.\n\n"
+            f"From: {message.sender}\n"
+            f"Subject: {message.subject}\n"
+            f"Body: {message.body}\n"
+        )
+        response_text, latency_ms = self.ai_provider.generate_text(
+            prompt, purpose="follow_up"
+        )
+        request = AiRequest(
+            provider=self.provider_name,
+            model=self.model_name,
+            prompt=prompt,
+            purpose="follow_up",
+            timestamp=datetime.utcnow(),
+        )
+        request_id = self.store.log_ai_request(request, user_id=self.user_id)
+        response = AiResponse(
+            request_id=request_id,
+            response_text=response_text,
+            latency_ms=latency_ms,
+            token_estimate=estimate_tokens(response_text),
+        )
+        self.store.log_ai_response(response)
+        logger.info("Suggested follow-up for message %s.", message_id)
+        return response_text
+
+
+@dataclass(frozen=True)
 class TaskService:
     """Summary: Manages action item storage and extraction.
 

@@ -120,6 +120,26 @@ class DraftRequest(BaseModel):
     instructions: str
 
 
+class MessageSummaryRequest(BaseModel):
+    """Summary: Request payload for message summarization.
+
+    Importance: Enables message summarization via the API.
+    Alternatives: Summarize messages via CLI only.
+    """
+
+    message_id: int
+
+
+class FollowUpRequest(BaseModel):
+    """Summary: Request payload for follow-up suggestions.
+
+    Importance: Enables follow-up guidance over HTTP.
+    Alternatives: Use only task extraction.
+    """
+
+    message_id: int
+
+
 class NoteCreateRequest(BaseModel):
     """Summary: Request payload for note creation.
 
@@ -445,6 +465,28 @@ def create_app(config: AppConfig) -> FastAPI:
 
         draft_text = services.chat.draft_reply(payload.message_id, payload.instructions)
         return {"draft": draft_text}
+
+    @app.post("/messages/summary", dependencies=[Depends(require_api_key)])
+    def summarize_message(payload: MessageSummaryRequest) -> dict[str, Any]:
+        """Summary: Summarize a message and store it as a note.
+
+        Importance: Provides concise context for message review.
+        Alternatives: Require manual summarization.
+        """
+
+        note_id = services.message_insights.summarize_message(payload.message_id)
+        return {"note_id": note_id}
+
+    @app.post("/messages/follow-up", dependencies=[Depends(require_api_key)])
+    def suggest_follow_up(payload: FollowUpRequest) -> dict[str, Any]:
+        """Summary: Suggest a follow-up action for a message.
+
+        Importance: Guides the user toward next steps.
+        Alternatives: Provide no follow-up suggestions.
+        """
+
+        suggestion = services.message_insights.suggest_follow_up(payload.message_id)
+        return {"suggestion": suggestion}
 
     @app.post("/notes", dependencies=[Depends(require_api_key)])
     def add_note(payload: NoteCreateRequest) -> dict[str, Any]:

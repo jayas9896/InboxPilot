@@ -20,3 +20,4 @@ CL-0017 | Notes listing | 2026-01-15 | Added note list endpoints and CLI support
 CL-0018 | EML ingestion | 2026-01-15 | Added .eml email import support.
 CL-0019 | OAuth helpers | 2026-01-15 | Added OAuth URL helpers for Google and Microsoft.
 CL-0020 | Triage scoring | 2026-01-15 | Added keyword-based inbox triage.
+CL-0021 | Message insights | 2026-01-15 | Added message summaries and follow-up suggestions.

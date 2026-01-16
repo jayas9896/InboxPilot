@@ -264,6 +264,39 @@ def test_api_triage(tmp_path: Path) -> None:
     assert response.json()[0]["priority"] in {"high", "medium", "low"}
 
 
+def test_api_message_insights(tmp_path: Path) -> None:
+    """Summary: Verify message summary and follow-up endpoints.
+
+    Importance: Ensures message insights are exposed via the API.
+    Alternatives: Use CLI-only message insights.
+    """
+
+    fixture = tmp_path / "mock_messages.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_message_id": "insight-1",
+            "subject": "Question",
+            "sender": "from@example.com",
+            "recipients": "to@example.com",
+            "timestamp": "2026-01-15T10:00:00",
+            "snippet": "Question",
+            "body": "Can you share availability?"
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    client.post("/ingest/mock", json={"limit": 1, "fixture_path": str(fixture)})
+    summary_response = client.post("/messages/summary", json={"message_id": 1})
+    assert summary_response.status_code == 200
+    follow_up_response = client.post("/messages/follow-up", json={"message_id": 1})
+    assert follow_up_response.status_code == 200
+
+
 def test_api_notes(tmp_path: Path) -> None:
     """Summary: Verify notes endpoints work over HTTP.
 
