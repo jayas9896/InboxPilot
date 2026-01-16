@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from inboxpilot.app import build_services
-from inboxpilot.calendar import MockCalendarProvider
+from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
 from inboxpilot.email import MockEmailProvider
@@ -41,6 +41,17 @@ class MeetingIngestRequest(BaseModel):
 
     limit: int = Field(default=5, ge=1, le=200)
     fixture_path: str | None = None
+
+
+class IcsIngestRequest(BaseModel):
+    """Summary: Request payload for iCalendar ingestion.
+
+    Importance: Supports calendar ingestion without provider APIs.
+    Alternatives: Require direct Google or Microsoft integrations.
+    """
+
+    path: str
+    limit: int = Field(default=25, ge=1, le=200)
 
 
 class CategoryCreateRequest(BaseModel):
@@ -250,6 +261,22 @@ def create_app(config: AppConfig) -> FastAPI:
         if not fixture_path.exists():
             raise HTTPException(status_code=404, detail="Fixture not found")
         provider = MockCalendarProvider(fixture_path)
+        meetings = provider.fetch_upcoming(payload.limit)
+        ids = services.meetings.ingest_meetings(meetings)
+        return {"ingested": len(ids)}
+
+    @app.post("/ingest/calendar-ics", dependencies=[Depends(require_api_key)])
+    def ingest_calendar_ics(payload: IcsIngestRequest) -> dict[str, Any]:
+        """Summary: Ingest meetings from an iCalendar (.ics) file.
+
+        Importance: Enables local calendar ingestion without API auth.
+        Alternatives: Use direct provider APIs with OAuth.
+        """
+
+        ics_path = Path(payload.path)
+        if not ics_path.exists():
+            raise HTTPException(status_code=404, detail="ICS file not found")
+        provider = IcsCalendarProvider(ics_path)
         meetings = provider.fetch_upcoming(payload.limit)
         ids = services.meetings.ingest_meetings(meetings)
         return {"ingested": len(ids)}

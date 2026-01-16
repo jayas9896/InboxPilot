@@ -15,3 +15,4 @@ CL-0012 | Default user scaffolding | 2026-01-15 | Added user records and user_id
 CL-0013 | API key auth | 2026-01-15 | Added optional API key enforcement and UI support.
 CL-0014 | Connection registry | 2026-01-15 | Added integration records and OAuth config placeholders.
 CL-0015 | Analytics snapshot | 2026-01-15 | Added stats counts for core entities.
+CL-0016 | iCalendar ingestion | 2026-01-15 | Added .ics calendar import support.

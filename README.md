@@ -30,6 +30,7 @@ python -m inboxpilot.cli add-category Recruiting --description "Hiring workflow"
 python -m inboxpilot.cli assign-category 1 1
 python -m inboxpilot.cli suggest-categories 1
 python -m inboxpilot.cli ingest-calendar-mock --limit 2
+python -m inboxpilot.cli ingest-calendar-ics path\\to\\calendar.ics
 python -m inboxpilot.cli list-meetings
 python -m inboxpilot.cli chat "What emails need follow up?"
 python -m inboxpilot.cli draft 1 "Thank them and ask for availability"
@@ -62,6 +63,7 @@ Example requests:
 curl -X POST http://127.0.0.1:8000/ingest/mock -H "Content-Type: application/json" -d "{\"limit\":3}"
 curl http://127.0.0.1:8000/messages
 curl http://127.0.0.1:8000/stats
+curl -X POST http://127.0.0.1:8000/ingest/calendar-ics -H "Content-Type: application/json" -d "{\"path\":\"C:\\\\path\\\\to\\\\calendar.ics\"}"
 ```
 
 ### Run with IMAP (Read-only)

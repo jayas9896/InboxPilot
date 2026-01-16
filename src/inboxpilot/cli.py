@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 from inboxpilot.app import build_services
-from inboxpilot.calendar import MockCalendarProvider
+from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
 from inboxpilot.email import ImapEmailProvider, MockEmailProvider
@@ -41,6 +41,10 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_calendar.add_argument(
         "--fixture", type=str, default=str(Path("data") / "mock_meetings.json")
     )
+
+    ingest_calendar_ics = subparsers.add_parser("ingest-calendar-ics", help="Ingest meetings from .ics")
+    ingest_calendar_ics.add_argument("path", type=str)
+    ingest_calendar_ics.add_argument("--limit", type=int, default=25)
 
     add_category = subparsers.add_parser("add-category", help="Create a category")
     add_category.add_argument("name", type=str)
@@ -156,6 +160,13 @@ def run_cli() -> None:
         meetings = provider.fetch_upcoming(args.limit)
         ids = services.meetings.ingest_meetings(meetings)
         print(f"Ingested {len(ids)} meetings from mock fixture.")
+        return
+
+    if args.command == "ingest-calendar-ics":
+        provider = IcsCalendarProvider(Path(args.path))
+        meetings = provider.fetch_upcoming(args.limit)
+        ids = services.meetings.ingest_meetings(meetings)
+        print(f"Ingested {len(ids)} meetings from iCalendar.")
         return
 
     if args.command == "add-category":
