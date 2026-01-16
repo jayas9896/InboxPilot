@@ -43,6 +43,7 @@ class AppConfig:
     google_token_url: str
     microsoft_token_url: str
     google_api_base_url: str
+    microsoft_graph_base_url: str
     triage_high_keywords: list[str]
     triage_medium_keywords: list[str]
     token_secret: str
@@ -94,6 +95,9 @@ class AppConfig:
             ),
             google_api_base_url=os.getenv(
                 "INBOXPILOT_GOOGLE_API_BASE_URL", defaults["google_api_base_url"]
+            ),
+            microsoft_graph_base_url=os.getenv(
+                "INBOXPILOT_MICROSOFT_GRAPH_BASE_URL", defaults["microsoft_graph_base_url"]
             ),
             triage_high_keywords=_parse_csv(
                 os.getenv("INBOXPILOT_TRIAGE_HIGH_KEYWORDS", defaults["triage_high_keywords"])

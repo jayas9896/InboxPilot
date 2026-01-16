@@ -19,7 +19,7 @@ from inboxpilot.app import build_services
 from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
-from inboxpilot.email import EmlEmailProvider, GmailEmailProvider, MockEmailProvider
+from inboxpilot.email import EmlEmailProvider, GmailEmailProvider, MockEmailProvider, OutlookEmailProvider
 from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url, create_state_token, exchange_oauth_code
 
 
@@ -52,6 +52,18 @@ class GmailIngestRequest(BaseModel):
 
     Importance: Supports OAuth-based Gmail imports over the API.
     Alternatives: Use the CLI-only Gmail ingestion workflow.
+    """
+
+    limit: int = Field(default=10, ge=1, le=200)
+
+
+
+
+class OutlookIngestRequest(BaseModel):
+    """Summary: Request payload for Outlook ingestion.
+
+    Importance: Supports OAuth-based Outlook imports over the API.
+    Alternatives: Use the CLI-only Outlook ingestion workflow.
     """
 
     limit: int = Field(default=10, ge=1, le=200)
@@ -367,6 +379,28 @@ def create_app(config: AppConfig) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         provider = GmailEmailProvider(access_token, config.google_api_base_url)
+        try:
+            messages = provider.fetch_recent(payload.limit)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        ids = services.ingestion.ingest_messages(messages)
+        return {"ingested": len(ids)}
+
+
+
+    @app.post("/ingest/outlook", dependencies=[Depends(require_api_key)])
+    def ingest_outlook(payload: OutlookIngestRequest) -> dict[str, Any]:
+        """Summary: Ingest emails via Outlook OAuth tokens.
+
+        Importance: Enables provider ingestion without IMAP passwords.
+        Alternatives: Use IMAP or .eml ingestion only.
+        """
+
+        try:
+            access_token = services.tokens.get_access_token("microsoft")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        provider = OutlookEmailProvider(access_token, config.microsoft_graph_base_url)
         try:
             messages = provider.fetch_recent(payload.limit)
         except RuntimeError as exc:

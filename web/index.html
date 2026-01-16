@@ -168,6 +168,7 @@
         <div class="row">
           <button id="ingestEmails">Ingest Mock Emails</button>
           <button id="ingestGmail" class="secondary">Ingest Gmail</button>
+          <button id="ingestOutlook" class="secondary">Ingest Outlook</button>
           <button id="ingestMeetings" class="secondary">Ingest Mock Meetings</button>
         </div>
         <div class="status" id="ingestStatus">Waiting for action.</div>
@@ -324,6 +325,22 @@
           setStatus(`Ingested ${payload.ingested} Gmail messages.`);
         } else {
           setStatus(payload.detail || "Gmail ingestion failed.");
+        }
+      });
+
+
+      document.getElementById("ingestOutlook").addEventListener("click", async () => {
+        setStatus("Ingesting Outlook messages...");
+        const response = await fetch(`${api}/ingest/outlook`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ limit: 5 }),
+        });
+        const payload = await response.json();
+        if (response.ok) {
+          setStatus(`Ingested ${payload.ingested} Outlook messages.`);
+        } else {
+          setStatus(payload.detail || "Outlook ingestion failed.");
         }
       });
 

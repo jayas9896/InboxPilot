@@ -14,7 +14,7 @@ from inboxpilot.app import build_services
 from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
-from inboxpilot.email import EmlEmailProvider, GmailEmailProvider, ImapEmailProvider, MockEmailProvider
+from inboxpilot.email import EmlEmailProvider, GmailEmailProvider, ImapEmailProvider, MockEmailProvider, OutlookEmailProvider
 from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url, create_state_token
 
 
@@ -39,6 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest_gmail = subparsers.add_parser("ingest-gmail", help="Ingest emails via Gmail OAuth")
     ingest_gmail.add_argument("--limit", type=int, default=5)
+
+    ingest_outlook = subparsers.add_parser("ingest-outlook", help="Ingest emails via Outlook OAuth")
+    ingest_outlook.add_argument("--limit", type=int, default=5)
 
     ingest_eml = subparsers.add_parser("ingest-eml", help="Ingest emails from .eml files")
     ingest_eml.add_argument("paths", nargs="+", type=str)
@@ -217,6 +220,14 @@ def run_cli() -> None:
         messages = provider.fetch_recent(args.limit)
         ids = services.ingestion.ingest_messages(messages)
         print(f"Ingested {len(ids)} messages from Gmail API.")
+        return
+
+    if args.command == "ingest-outlook":
+        access_token = services.tokens.get_access_token("microsoft")
+        provider = OutlookEmailProvider(access_token, config.microsoft_graph_base_url)
+        messages = provider.fetch_recent(args.limit)
+        ids = services.ingestion.ingest_messages(messages)
+        print(f"Ingested {len(ids)} messages from Outlook API.")
         return
 
     if args.command == "ingest-eml":

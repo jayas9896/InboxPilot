@@ -38,6 +38,7 @@ def _config() -> AppConfig:
         google_token_url="https://oauth2.googleapis.com/token",
         microsoft_token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
         google_api_base_url="https://gmail.googleapis.com/gmail/v1",
+        microsoft_graph_base_url="https://graph.microsoft.com/v1.0",
         triage_high_keywords=["urgent"],
         triage_medium_keywords=["review"],
         token_secret="secret",

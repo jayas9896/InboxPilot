@@ -49,6 +49,7 @@ def _build_config(db_path: str) -> AppConfig:
         google_token_url="https://oauth2.googleapis.com/token",
         microsoft_token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
         google_api_base_url="https://gmail.googleapis.com/gmail/v1",
+        microsoft_graph_base_url="https://graph.microsoft.com/v1.0",
         triage_high_keywords=["urgent"],
         triage_medium_keywords=["review"],
         token_secret="secret",
@@ -127,6 +128,47 @@ def test_api_ingest_gmail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     list_response = client.get("/messages")
     assert list_response.status_code == 200
     assert list_response.json()[0]["subject"] == "Gmail hello"
+
+
+
+
+def test_api_ingest_outlook(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Summary: Verify Outlook ingestion endpoint stores messages.
+
+    Importance: Ensures OAuth-backed ingestion works via the API.
+    Alternatives: Use CLI-only Outlook ingestion.
+    """
+
+    class _FakeOutlookProvider:
+        def __init__(self, access_token: str, base_url: str) -> None:
+            self.access_token = access_token
+            self.base_url = base_url
+
+        def fetch_recent(self, limit: int) -> list[Message]:
+            return [
+                Message(
+                    provider_message_id="outlook-1",
+                    subject="Outlook hello",
+                    sender="from@outlook.com",
+                    recipients="to@example.com",
+                    timestamp=datetime(2026, 1, 15, 11, 0, 0),
+                    snippet="Hello",
+                    body="Hello",
+                )
+            ]
+
+    monkeypatch.setattr("inboxpilot.api.OutlookEmailProvider", _FakeOutlookProvider)
+    monkeypatch.setattr(
+        "inboxpilot.services.TokenService.get_access_token",
+        lambda _self, _provider: "token",
+    )
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    response = client.post("/ingest/outlook", json={"limit": 1})
+    assert response.status_code == 200
+    list_response = client.get("/messages")
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["subject"] == "Outlook hello"
 
 
 def test_api_search_messages(tmp_path: Path) -> None:

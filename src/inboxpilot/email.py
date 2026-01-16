@@ -311,6 +311,117 @@ def _decode_base64url(data: str) -> str:
     return base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8", errors="ignore")
 
 
+class OutlookEmailProvider(EmailProvider):
+    """Summary: Reads emails via Microsoft Graph using OAuth tokens.
+
+    Importance: Enables OAuth-based Outlook ingestion without IMAP passwords.
+    Alternatives: Use IMAP or a provider SDK.
+    """
+
+    def __init__(self, access_token: str, base_url: str) -> None:
+        """Summary: Initialize the Outlook provider.
+
+        Importance: Stores access token and base URL for Graph requests.
+        Alternatives: Fetch tokens on demand inside each request.
+        """
+
+        self._access_token = access_token
+        self._base_url = base_url.rstrip("/")
+
+    def fetch_recent(self, limit: int) -> list[Message]:
+        """Summary: Fetch recent Outlook messages using Microsoft Graph.
+
+        Importance: Provides OAuth-based read-only ingestion.
+        Alternatives: Use provider sync APIs or delta queries.
+        """
+
+        list_url = (
+            f"{self._base_url}/me/messages?"
+            f"$top={limit}&$select=id,subject,from,toRecipients,bodyPreview,body,receivedDateTime"
+        )
+        payload = _graph_api_get(list_url, self._access_token)
+        messages: list[Message] = []
+        for item in payload.get("value", []):
+            parsed = _parse_outlook_message(item)
+            if parsed:
+                messages.append(parsed)
+        return messages
+
+
+def _graph_api_get(url: str, access_token: str) -> dict[str, Any]:
+    """Summary: Fetch JSON data from Microsoft Graph.
+
+    Importance: Encapsulates Graph API calls without new dependencies.
+    Alternatives: Use a third-party HTTP client or SDK.
+    """
+
+    request = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {access_token}"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            raw = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8")
+        raise RuntimeError(f"Microsoft Graph request failed: {error_body or exc.reason}") from exc
+    return json.loads(raw)
+
+
+def _parse_outlook_message(message: dict[str, Any]) -> Message | None:
+    """Summary: Parse a Microsoft Graph message payload into a Message.
+
+    Importance: Normalizes Outlook payloads into the core message model.
+    Alternatives: Store raw Outlook payloads and parse later.
+    """
+
+    message_id = message.get("id", "")
+    subject = message.get("subject", "")
+    sender = (message.get("from") or {}).get("emailAddress", {}).get("address", "")
+    recipients = normalize_recipients(
+        [
+            item.get("emailAddress", {}).get("address", "")
+            for item in message.get("toRecipients", [])
+        ]
+    )
+    received = message.get("receivedDateTime")
+    timestamp = _parse_iso_datetime(received)
+    body_preview = message.get("bodyPreview", "")
+    body_info = message.get("body") or {}
+    if body_info.get("contentType", "").lower() == "text" and body_info.get("content"):
+        body = body_info["content"]
+    else:
+        body = body_preview
+    snippet = body_preview or (body[:200].replace("
+", " ") if body else "")
+    return Message(
+        provider_message_id=message_id,
+        subject=subject,
+        sender=sender,
+        recipients=recipients,
+        timestamp=timestamp,
+        snippet=snippet,
+        body=body or snippet,
+    )
+
+
+def _parse_iso_datetime(value: str | None) -> datetime:
+    """Summary: Parse ISO datetime strings from Graph payloads.
+
+    Importance: Normalizes timestamps for sorting and filtering.
+    Alternatives: Store raw timestamp strings in the database.
+    """
+
+    if not value:
+        return datetime.utcnow()
+    cleaned = value.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(cleaned)
+    except ValueError:
+        return datetime.utcnow()
+
+
 
 def _decode_header_value(value: str) -> str:
     """Summary: Decode encoded email header values.
