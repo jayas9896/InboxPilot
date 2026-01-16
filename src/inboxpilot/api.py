@@ -6,6 +6,7 @@ Alternatives: Use a CLI-only workflow or a different web framework.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 import logging
 from datetime import datetime, timedelta
@@ -15,12 +16,14 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from inboxpilot.app import build_services
+from inboxpilot.app import AppServices, build_context
 from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
 from inboxpilot.email import EmlEmailProvider, GmailEmailProvider, MockEmailProvider, OutlookEmailProvider
+from inboxpilot.models import User
 from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url, create_state_token, exchange_oauth_code
+from inboxpilot.services import ApiKeyService
 
 
 class IngestRequest(BaseModel):
@@ -265,6 +268,43 @@ class MeetingSummaryRequest(BaseModel):
     meeting_id: int
 
 
+
+
+class UserCreateRequest(BaseModel):
+    """Summary: Request payload for user creation.
+
+    Importance: Enables multi-user onboarding from the API.
+    Alternatives: Create users only via CLI or external auth.
+    """
+
+    display_name: str
+    email: str
+
+
+class ApiKeyCreateRequest(BaseModel):
+    """Summary: Request payload for API key issuance.
+
+    Importance: Allows clients to request new API keys.
+    Alternatives: Issue API keys only via CLI.
+    """
+
+    label: str | None = None
+
+
+
+
+@dataclass(frozen=True)
+class AuthContext:
+    """Summary: Authentication context for API requests.
+
+    Importance: Carries user identity and admin status for request handling.
+    Alternatives: Use external auth middleware.
+    """
+
+    user_id: int
+    is_admin: bool
+
+
 class ConnectionCreateRequest(BaseModel):
     """Summary: Request payload for integration connections.
 
@@ -288,7 +328,11 @@ def create_app(config: AppConfig) -> FastAPI:
     if not logging.getLogger().handlers:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     app = FastAPI(title="InboxPilot API", version="0.1.0")
-    services = build_services(config)
+    context = build_context(config)
+    default_user_id = context.store.ensure_user(
+        User(display_name=config.default_user_name, email=config.default_user_email)
+    )
+    api_keys = ApiKeyService(store=context.store, token_secret=config.token_secret)
     app.state.oauth_states = {}
 
     def _register_state(provider: str, state: str) -> None:
@@ -313,20 +357,40 @@ def create_app(config: AppConfig) -> FastAPI:
         if datetime.utcnow() - record["created_at"] > timedelta(minutes=10):
             raise HTTPException(status_code=400, detail="OAuth state expired")
 
-    def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-        """Summary: Enforce API key authentication when configured.
+    def require_auth(x_api_key: str | None = Header(default=None)) -> AuthContext:
+        """Summary: Resolve request authentication context.
 
-        Importance: Adds a minimal security layer for local and private deployments.
-        Alternatives: Use OAuth or session-based authentication.
+        Importance: Supports per-user API keys and optional admin tokens.
+        Alternatives: Use OAuth or external auth middleware.
         """
 
-        if not config.api_key:
-            return
-        if x_api_key != config.api_key:
+        if config.api_key:
+            if not x_api_key:
+                raise HTTPException(status_code=401, detail="Missing API key")
+            if x_api_key == config.api_key:
+                return AuthContext(user_id=default_user_id, is_admin=True)
+            user_id = api_keys.resolve_user_id(x_api_key)
+            if user_id:
+                return AuthContext(user_id=user_id, is_admin=False)
             raise HTTPException(status_code=401, detail="Invalid API key")
+        if x_api_key:
+            user_id = api_keys.resolve_user_id(x_api_key)
+            if user_id:
+                return AuthContext(user_id=user_id, is_admin=False)
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        return AuthContext(user_id=default_user_id, is_admin=True)
+
+    def get_services(auth: AuthContext = Depends(require_auth)) -> AppServices:
+        """Summary: Build user-scoped services for a request.
+
+        Importance: Ensures data access is scoped to the authenticated user.
+        Alternatives: Use a global service with manual user filtering.
+        """
+
+        return context.services_for_user(auth.user_id)
 
     @app.get("/", response_class=HTMLResponse)
-    def landing() -> str:
+    def landing(services: AppServices = Depends(get_services)) -> str:
         """Summary: Serve the local web dashboard.
 
         Importance: Provides a simple UI for the MVP without extra tooling.
@@ -338,8 +402,82 @@ def create_app(config: AppConfig) -> FastAPI:
             raise HTTPException(status_code=404, detail="Dashboard not found")
         return html_path.read_text(encoding="utf-8")
 
+
+
+    @app.post("/users")
+    def create_user(
+        payload: UserCreateRequest,
+        auth: AuthContext = Depends(require_auth),
+        services: AppServices = Depends(get_services),
+    ) -> dict[str, int]:
+        """Summary: Create a new user (admin only).
+
+        Importance: Enables multi-user onboarding.
+        Alternatives: Use an external identity provider.
+        """
+
+        if not auth.is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        user_id = services.users.create_user(payload.display_name, payload.email)
+        return {"id": user_id}
+
+    @app.get("/users")
+    def list_users(
+        auth: AuthContext = Depends(require_auth),
+        services: AppServices = Depends(get_services),
+    ) -> list[dict[str, str | int]]:
+        """Summary: List users (admin only).
+
+        Importance: Supports admin review of user accounts.
+        Alternatives: Manage users externally.
+        """
+
+        if not auth.is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        return [
+            {"id": user.id, "display_name": user.display_name, "email": user.email}
+            for user in services.users.list_users()
+        ]
+
+    @app.post("/users/{user_id}/keys")
+    def create_api_key(
+        user_id: int,
+        payload: ApiKeyCreateRequest,
+        auth: AuthContext = Depends(require_auth),
+        services: AppServices = Depends(get_services),
+    ) -> dict[str, str | int]:
+        """Summary: Create an API key for a user (admin only).
+
+        Importance: Issues per-user API tokens for authentication.
+        Alternatives: Use OAuth tokens from an external provider.
+        """
+
+        if not auth.is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        key_id, token = services.api_keys.create_api_key(user_id, payload.label)
+        return {"id": key_id, "token": token}
+
+    @app.get("/users/{user_id}/keys")
+    def list_api_keys(
+        user_id: int,
+        auth: AuthContext = Depends(require_auth),
+        services: AppServices = Depends(get_services),
+    ) -> list[dict[str, str | int]]:
+        """Summary: List API keys for a user (admin only).
+
+        Importance: Supports key auditing and rotation.
+        Alternatives: Store keys outside the application.
+        """
+
+        if not auth.is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        return [
+            {"id": key.id, "label": key.label or "", "created_at": key.created_at}
+            for key in services.api_keys.list_api_keys(user_id)
+        ]
+
     @app.get("/health")
-    def health() -> dict[str, str]:
+    def health(services: AppServices = Depends(get_services)) -> dict[str, str]:
         """Summary: Health check endpoint.
 
         Importance: Supports uptime checks in local and cloud deployments.
@@ -348,8 +486,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return {"status": "ok"}
 
-    @app.post("/ingest/mock", dependencies=[Depends(require_api_key)])
-    def ingest_mock(payload: IngestRequest) -> dict[str, Any]:
+    @app.post("/ingest/mock")
+    def ingest_mock(payload: IngestRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Ingest mock email messages from a fixture.
 
         Importance: Enables deterministic demos and integration tests.
@@ -366,8 +504,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
 
 
-    @app.post("/ingest/gmail", dependencies=[Depends(require_api_key)])
-    def ingest_gmail(payload: GmailIngestRequest) -> dict[str, Any]:
+    @app.post("/ingest/gmail")
+    def ingest_gmail(payload: GmailIngestRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Ingest emails via Gmail OAuth tokens.
 
         Importance: Enables provider ingestion without IMAP passwords.
@@ -388,8 +526,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
 
 
-    @app.post("/ingest/outlook", dependencies=[Depends(require_api_key)])
-    def ingest_outlook(payload: OutlookIngestRequest) -> dict[str, Any]:
+    @app.post("/ingest/outlook")
+    def ingest_outlook(payload: OutlookIngestRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Ingest emails via Outlook OAuth tokens.
 
         Importance: Enables provider ingestion without IMAP passwords.
@@ -408,8 +546,8 @@ def create_app(config: AppConfig) -> FastAPI:
         ids = services.ingestion.ingest_messages(messages)
         return {"ingested": len(ids)}
 
-    @app.post("/ingest/eml", dependencies=[Depends(require_api_key)])
-    def ingest_eml(payload: EmlIngestRequest) -> dict[str, Any]:
+    @app.post("/ingest/eml")
+    def ingest_eml(payload: EmlIngestRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Ingest emails from .eml files.
 
         Importance: Enables local email imports without API auth.
@@ -424,8 +562,8 @@ def create_app(config: AppConfig) -> FastAPI:
         ids = services.ingestion.ingest_messages(messages)
         return {"ingested": len(ids)}
 
-    @app.post("/ingest/calendar-mock", dependencies=[Depends(require_api_key)])
-    def ingest_calendar_mock(payload: MeetingIngestRequest) -> dict[str, Any]:
+    @app.post("/ingest/calendar-mock")
+    def ingest_calendar_mock(payload: MeetingIngestRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Ingest mock meeting data from a fixture.
 
         Importance: Enables meeting workflows without live providers.
@@ -440,8 +578,8 @@ def create_app(config: AppConfig) -> FastAPI:
         ids = services.meetings.ingest_meetings(meetings)
         return {"ingested": len(ids)}
 
-    @app.post("/ingest/calendar-ics", dependencies=[Depends(require_api_key)])
-    def ingest_calendar_ics(payload: IcsIngestRequest) -> dict[str, Any]:
+    @app.post("/ingest/calendar-ics")
+    def ingest_calendar_ics(payload: IcsIngestRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Ingest meetings from an iCalendar (.ics) file.
 
         Importance: Enables local calendar ingestion without API auth.
@@ -456,8 +594,8 @@ def create_app(config: AppConfig) -> FastAPI:
         ids = services.meetings.ingest_meetings(meetings)
         return {"ingested": len(ids)}
 
-    @app.get("/messages", dependencies=[Depends(require_api_key)])
-    def list_messages(limit: int = 10) -> list[dict[str, Any]]:
+    @app.get("/messages")
+    def list_messages(limit: int = 10, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List recent messages.
 
         Importance: Provides data for UI clients and API consumers.
@@ -477,8 +615,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for message in services.store.list_messages(limit, user_id=services.user_id)
         ]
 
-    @app.get("/messages/search", dependencies=[Depends(require_api_key)])
-    def search_messages(query: str, limit: int = 10) -> list[dict[str, Any]]:
+    @app.get("/messages/search")
+    def search_messages(query: str, limit: int = 10, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: Search stored messages by query.
 
         Importance: Provides contextual search over the inbox.
@@ -498,8 +636,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for message in services.store.search_messages(query, limit, user_id=services.user_id)
         ]
 
-    @app.get("/meetings", dependencies=[Depends(require_api_key)])
-    def list_meetings(limit: int = 10) -> list[dict[str, Any]]:
+    @app.get("/meetings")
+    def list_meetings(limit: int = 10, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List recent meetings.
 
         Importance: Supports meeting listings for clients and UI.
@@ -519,8 +657,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for meeting in services.meetings.list_meetings(limit)
         ]
 
-    @app.get("/meetings/search", dependencies=[Depends(require_api_key)])
-    def search_meetings(query: str, limit: int = 10) -> list[dict[str, Any]]:
+    @app.get("/meetings/search")
+    def search_meetings(query: str, limit: int = 10, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: Search meetings by title or participants.
 
         Importance: Enables meeting discovery via the API.
@@ -542,8 +680,8 @@ def create_app(config: AppConfig) -> FastAPI:
             )
         ]
 
-    @app.get("/categories", dependencies=[Depends(require_api_key)])
-    def list_categories() -> list[dict[str, Any]]:
+    @app.get("/categories")
+    def list_categories(services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List existing categories.
 
         Importance: Enables category management from clients.
@@ -555,8 +693,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for category in services.store.list_categories(user_id=services.user_id)
         ]
 
-    @app.post("/categories", dependencies=[Depends(require_api_key)])
-    def create_category(payload: CategoryCreateRequest) -> dict[str, Any]:
+    @app.post("/categories")
+    def create_category(payload: CategoryCreateRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Create a category.
 
         Importance: Adds first-class user-defined organization.
@@ -566,8 +704,8 @@ def create_app(config: AppConfig) -> FastAPI:
         category_id = services.categories.create_category(payload.name, payload.description)
         return {"id": category_id}
 
-    @app.post("/categories/assign", dependencies=[Depends(require_api_key)])
-    def assign_category(payload: CategoryAssignRequest) -> dict[str, Any]:
+    @app.post("/categories/assign")
+    def assign_category(payload: CategoryAssignRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Assign a category to a message.
 
         Importance: Links messages to organization labels.
@@ -577,8 +715,8 @@ def create_app(config: AppConfig) -> FastAPI:
         services.categories.assign_category(payload.message_id, payload.category_id)
         return {"status": "ok"}
 
-    @app.post("/categories/suggest", dependencies=[Depends(require_api_key)])
-    def suggest_categories(payload: CategorySuggestRequest) -> list[dict[str, Any]]:
+    @app.post("/categories/suggest")
+    def suggest_categories(payload: CategorySuggestRequest, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: Suggest categories for a stored message.
 
         Importance: Provides AI-driven suggestions for inbox organization.
@@ -591,8 +729,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for category in suggestions
         ]
 
-    @app.get("/templates", dependencies=[Depends(require_api_key)])
-    def list_category_templates() -> list[dict[str, Any]]:
+    @app.get("/templates")
+    def list_category_templates(services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List available category templates.
 
         Importance: Helps clients discover starter packs.
@@ -604,8 +742,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for template in list_templates()
         ]
 
-    @app.post("/templates/load", dependencies=[Depends(require_api_key)])
-    def load_category_template(payload: TemplateLoadRequest) -> dict[str, Any]:
+    @app.post("/templates/load")
+    def load_category_template(payload: TemplateLoadRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Load a template pack into storage.
 
         Importance: Speeds onboarding for common domains.
@@ -615,8 +753,8 @@ def create_app(config: AppConfig) -> FastAPI:
         created = load_template(services.store, payload.template_name, user_id=services.user_id)
         return {"created": created}
 
-    @app.post("/chat", dependencies=[Depends(require_api_key)])
-    def chat(payload: ChatRequest) -> dict[str, Any]:
+    @app.post("/chat")
+    def chat(payload: ChatRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Answer a question using stored messages.
 
         Importance: Provides the chat assistant experience over HTTP.
@@ -626,8 +764,8 @@ def create_app(config: AppConfig) -> FastAPI:
         answer = services.chat.answer(payload.query, limit=payload.limit)
         return {"answer": answer}
 
-    @app.post("/draft", dependencies=[Depends(require_api_key)])
-    def draft(payload: DraftRequest) -> dict[str, Any]:
+    @app.post("/draft")
+    def draft(payload: DraftRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Draft a reply to a message.
 
         Importance: Keeps drafts explicit and user-controlled.
@@ -637,8 +775,8 @@ def create_app(config: AppConfig) -> FastAPI:
         draft_text = services.chat.draft_reply(payload.message_id, payload.instructions)
         return {"draft": draft_text}
 
-    @app.post("/messages/summary", dependencies=[Depends(require_api_key)])
-    def summarize_message(payload: MessageSummaryRequest) -> dict[str, Any]:
+    @app.post("/messages/summary")
+    def summarize_message(payload: MessageSummaryRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Summarize a message and store it as a note.
 
         Importance: Provides concise context for message review.
@@ -648,8 +786,8 @@ def create_app(config: AppConfig) -> FastAPI:
         note_id = services.message_insights.summarize_message(payload.message_id)
         return {"note_id": note_id}
 
-    @app.post("/messages/follow-up", dependencies=[Depends(require_api_key)])
-    def suggest_follow_up(payload: FollowUpRequest) -> dict[str, Any]:
+    @app.post("/messages/follow-up")
+    def suggest_follow_up(payload: FollowUpRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Suggest a follow-up action for a message.
 
         Importance: Guides the user toward next steps.
@@ -659,8 +797,8 @@ def create_app(config: AppConfig) -> FastAPI:
         suggestion = services.message_insights.suggest_follow_up(payload.message_id)
         return {"suggestion": suggestion}
 
-    @app.post("/tokens", dependencies=[Depends(require_api_key)])
-    def store_tokens(payload: TokenStoreRequest) -> dict[str, Any]:
+    @app.post("/tokens")
+    def store_tokens(payload: TokenStoreRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Store OAuth tokens for a provider.
 
         Importance: Prepares provider ingestion with saved tokens.
@@ -675,8 +813,8 @@ def create_app(config: AppConfig) -> FastAPI:
         )
         return {"id": token_id}
 
-    @app.get("/ai/requests", dependencies=[Depends(require_api_key)])
-    def list_ai_requests(limit: int = 20) -> list[dict[str, Any]]:
+    @app.get("/ai/requests")
+    def list_ai_requests(limit: int = 20, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List AI requests for auditing.
 
         Importance: Enables prompt and usage review.
@@ -685,8 +823,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return services.ai_audit.list_requests(limit=limit)
 
-    @app.get("/ai/responses", dependencies=[Depends(require_api_key)])
-    def list_ai_responses(limit: int = 20) -> list[dict[str, Any]]:
+    @app.get("/ai/responses")
+    def list_ai_responses(limit: int = 20, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List AI responses for auditing.
 
         Importance: Enables output and latency review.
@@ -695,8 +833,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return services.ai_audit.list_responses(limit=limit)
 
-    @app.post("/notes", dependencies=[Depends(require_api_key)])
-    def add_note(payload: NoteCreateRequest) -> dict[str, Any]:
+    @app.post("/notes")
+    def add_note(payload: NoteCreateRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Create a note for a message or meeting.
 
         Importance: Stores user context and action items.
@@ -706,8 +844,8 @@ def create_app(config: AppConfig) -> FastAPI:
         note_id = services.chat.add_note(payload.parent_type, payload.parent_id, payload.content)
         return {"id": note_id}
 
-    @app.get("/notes", dependencies=[Depends(require_api_key)])
-    def list_notes(parent_type: str, parent_id: int) -> list[dict[str, Any]]:
+    @app.get("/notes")
+    def list_notes(parent_type: str, parent_id: int, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List notes for a message or meeting.
 
         Importance: Exposes stored notes for UI clients.
@@ -719,8 +857,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for note in services.store.list_notes(parent_type, parent_id, user_id=services.user_id)
         ]
 
-    @app.post("/tasks", dependencies=[Depends(require_api_key)])
-    def add_task(payload: TaskCreateRequest) -> dict[str, Any]:
+    @app.post("/tasks")
+    def add_task(payload: TaskCreateRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Create a task for a message or meeting.
 
         Importance: Allows clients to capture action items explicitly.
@@ -730,8 +868,8 @@ def create_app(config: AppConfig) -> FastAPI:
         task_id = services.tasks.add_task(payload.parent_type, payload.parent_id, payload.description)
         return {"id": task_id}
 
-    @app.post("/tasks/update", dependencies=[Depends(require_api_key)])
-    def update_task(payload: TaskUpdateRequest) -> dict[str, Any]:
+    @app.post("/tasks/update")
+    def update_task(payload: TaskUpdateRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Update task status.
 
         Importance: Supports task completion workflows.
@@ -741,8 +879,8 @@ def create_app(config: AppConfig) -> FastAPI:
         services.tasks.update_task_status(payload.task_id, payload.status)
         return {"status": "ok"}
 
-    @app.get("/tasks", dependencies=[Depends(require_api_key)])
-    def list_tasks(parent_type: str, parent_id: int) -> list[dict[str, Any]]:
+    @app.get("/tasks")
+    def list_tasks(parent_type: str, parent_id: int, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List tasks for a message or meeting.
 
         Importance: Enables action-item review in client apps.
@@ -761,8 +899,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for task in services.tasks.list_tasks(parent_type, parent_id)
         ]
 
-    @app.post("/tasks/extract", dependencies=[Depends(require_api_key)])
-    def extract_tasks(payload: TaskExtractRequest) -> dict[str, Any]:
+    @app.post("/tasks/extract")
+    def extract_tasks(payload: TaskExtractRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Extract tasks from a message using AI.
 
         Importance: Captures follow-ups in a structured way.
@@ -772,8 +910,8 @@ def create_app(config: AppConfig) -> FastAPI:
         task_ids = services.tasks.extract_tasks_from_message(payload.message_id)
         return {"created": len(task_ids)}
 
-    @app.post("/tasks/extract-meeting", dependencies=[Depends(require_api_key)])
-    def extract_meeting_tasks(payload: MeetingSummaryRequest) -> dict[str, Any]:
+    @app.post("/tasks/extract-meeting")
+    def extract_meeting_tasks(payload: MeetingSummaryRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Extract tasks from a meeting transcript.
 
         Importance: Captures meeting follow-ups in a structured format.
@@ -783,8 +921,8 @@ def create_app(config: AppConfig) -> FastAPI:
         task_ids = services.tasks.extract_tasks_from_meeting(payload.meeting_id)
         return {"created": len(task_ids)}
 
-    @app.post("/meetings/transcript", dependencies=[Depends(require_api_key)])
-    def add_meeting_transcript(payload: MeetingTranscriptRequest) -> dict[str, Any]:
+    @app.post("/meetings/transcript")
+    def add_meeting_transcript(payload: MeetingTranscriptRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Store a meeting transcript for summarization.
 
         Importance: Enables AI summaries and task extraction for meetings.
@@ -794,8 +932,8 @@ def create_app(config: AppConfig) -> FastAPI:
         services.meeting_notes.add_transcript(payload.meeting_id, payload.content)
         return {"status": "ok"}
 
-    @app.post("/meetings/transcript-file", dependencies=[Depends(require_api_key)])
-    def add_meeting_transcript_file(payload: MeetingTranscriptFileRequest) -> dict[str, Any]:
+    @app.post("/meetings/transcript-file")
+    def add_meeting_transcript_file(payload: MeetingTranscriptFileRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Store a meeting transcript from a local file path.
 
         Importance: Supports transcript ingestion without paste-based workflows.
@@ -809,8 +947,8 @@ def create_app(config: AppConfig) -> FastAPI:
         services.meeting_notes.add_transcript(payload.meeting_id, content)
         return {"status": "ok"}
 
-    @app.post("/meetings/summary", dependencies=[Depends(require_api_key)])
-    def summarize_meeting(payload: MeetingSummaryRequest) -> dict[str, Any]:
+    @app.post("/meetings/summary")
+    def summarize_meeting(payload: MeetingSummaryRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Summarize a meeting transcript into a note.
 
         Importance: Produces readable meeting notes for follow-ups.
@@ -820,8 +958,8 @@ def create_app(config: AppConfig) -> FastAPI:
         note_id = services.meeting_notes.summarize_meeting(payload.meeting_id)
         return {"note_id": note_id}
 
-    @app.post("/connections", dependencies=[Depends(require_api_key)])
-    def add_connection(payload: ConnectionCreateRequest) -> dict[str, Any]:
+    @app.post("/connections")
+    def add_connection(payload: ConnectionCreateRequest, services: AppServices = Depends(get_services)) -> dict[str, Any]:
         """Summary: Create a connection record.
 
         Importance: Tracks provider integration state for UI clients.
@@ -836,8 +974,8 @@ def create_app(config: AppConfig) -> FastAPI:
         )
         return {"id": connection_id}
 
-    @app.get("/connections", dependencies=[Depends(require_api_key)])
-    def list_connections() -> list[dict[str, Any]]:
+    @app.get("/connections")
+    def list_connections(services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: List integration connections.
 
         Importance: Exposes integration status to clients.
@@ -856,8 +994,8 @@ def create_app(config: AppConfig) -> FastAPI:
             for connection in services.connections.list_connections()
         ]
 
-    @app.get("/stats", dependencies=[Depends(require_api_key)])
-    def stats() -> dict[str, int]:
+    @app.get("/stats")
+    def stats(services: AppServices = Depends(get_services)) -> dict[str, int]:
         """Summary: Return a snapshot of entity counts.
 
         Importance: Provides lightweight analytics for dashboards.
@@ -866,8 +1004,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return services.stats.snapshot()
 
-    @app.get("/triage", dependencies=[Depends(require_api_key)])
-    def triage(limit: int = 20) -> list[dict[str, Any]]:
+    @app.get("/triage")
+    def triage(limit: int = 20, services: AppServices = Depends(get_services)) -> list[dict[str, Any]]:
         """Summary: Return prioritized messages.
 
         Importance: Supports inbox triage views in the UI.
@@ -876,8 +1014,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
         return services.triage.rank_messages(limit=limit)
 
-    @app.get("/oauth/google", dependencies=[Depends(require_api_key)])
-    def oauth_google() -> dict[str, str]:
+    @app.get("/oauth/google")
+    def oauth_google(services: AppServices = Depends(get_services)) -> dict[str, str]:
         """Summary: Return the Google OAuth authorization URL.
 
         Importance: Enables initiating OAuth flows for Gmail/Calendar.
@@ -888,8 +1026,8 @@ def create_app(config: AppConfig) -> FastAPI:
         _register_state("google", state)
         return {"url": build_google_auth_url(config, state), "state": state}
 
-    @app.get("/oauth/microsoft", dependencies=[Depends(require_api_key)])
-    def oauth_microsoft() -> dict[str, str]:
+    @app.get("/oauth/microsoft")
+    def oauth_microsoft(services: AppServices = Depends(get_services)) -> dict[str, str]:
         """Summary: Return the Microsoft OAuth authorization URL.
 
         Importance: Enables initiating OAuth flows for Outlook/Calendar.
@@ -901,7 +1039,7 @@ def create_app(config: AppConfig) -> FastAPI:
         return {"url": build_microsoft_auth_url(config, state), "state": state}
 
     @app.get("/oauth/callback", response_class=HTMLResponse)
-    def oauth_callback(provider: str, code: str, state: str) -> str:
+    def oauth_callback(provider: str, code: str, state: str, services: AppServices = Depends(get_services)) -> str:
         """Summary: Handle OAuth callback, exchange tokens, and record a connection.
 
         Importance: Completes OAuth flows by retrieving and storing access tokens.

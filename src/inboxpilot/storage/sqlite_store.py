@@ -136,6 +136,23 @@ class StoredToken:
 
 
 @dataclass(frozen=True)
+
+
+@dataclass(frozen=True)
+class StoredApiKey:
+    """Summary: API key record for a user.
+
+    Importance: Enables per-user API authentication tokens.
+    Alternatives: Store API keys in an external auth service.
+    """
+
+    id: int
+    user_id: int
+    token_hash: str
+    label: str | None
+    created_at: str
+
+
 class StoredMeeting:
     """Summary: Meeting record with database identifier.
 
@@ -344,6 +361,17 @@ class SqliteStore:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS api_keys (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    label TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
             connection.commit()
         self._ensure_column("categories", "user_id")
         self._ensure_column("messages", "user_id")
@@ -373,6 +401,32 @@ class SqliteStore:
                 user_id = int(row[0]) if row else 0
             connection.commit()
         return int(user_id)
+
+    def list_users(self) -> list[StoredUser]:
+        """Summary: List all users.
+
+        Importance: Supports admin user management.
+        Alternatives: Store users only in an external auth system.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute("SELECT id, display_name, email FROM users ORDER BY id ASC")
+            rows = cursor.fetchall()
+        return [StoredUser(*row) for row in rows]
+
+    def get_user_by_email(self, email: str) -> StoredUser | None:
+        """Summary: Fetch a user by email.
+
+        Importance: Allows mapping API tokens to user records.
+        Alternatives: Use user IDs exclusively in APIs.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute("SELECT id, display_name, email FROM users WHERE email = ?", (email,))
+            row = cursor.fetchone()
+        return StoredUser(*row) if row else None
 
     def add_connection(self, connection: Connection, user_id: int) -> int:
         """Summary: Create a connection record for a user.
@@ -454,6 +508,69 @@ class SqliteStore:
             token_id = cursor.lastrowid
             connection_db.commit()
         return int(token_id)
+
+    def create_api_key(
+        self,
+        user_id: int,
+        token_hash: str,
+        label: str | None,
+        created_at: str,
+    ) -> int:
+        """Summary: Store a hashed API key for a user.
+
+        Importance: Enables per-user API authentication.
+        Alternatives: Use an external auth service.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                """
+                INSERT INTO api_keys (user_id, token_hash, label, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (user_id, token_hash, label, created_at),
+            )
+            key_id = cursor.lastrowid
+            connection_db.commit()
+        return int(key_id)
+
+    def list_api_keys(self, user_id: int) -> list[StoredApiKey]:
+        """Summary: List API keys for a user.
+
+        Importance: Supports key rotation and auditing.
+        Alternatives: Store keys outside of the database.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                """
+                SELECT id, user_id, token_hash, label, created_at
+                FROM api_keys
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                """,
+                (user_id,),
+            )
+            rows = cursor.fetchall()
+        return [StoredApiKey(*row) for row in rows]
+
+    def get_user_id_by_api_key(self, token_hash: str) -> int | None:
+        """Summary: Resolve a user ID from an API key hash.
+
+        Importance: Maps API tokens to user accounts for auth.
+        Alternatives: Keep API keys in a separate auth service.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                "SELECT user_id FROM api_keys WHERE token_hash = ?",
+                (token_hash,),
+            )
+            row = cursor.fetchone()
+        return int(row[0]) if row else None
 
     def get_oauth_token(self, user_id: int, provider_name: str) -> StoredToken | None:
         """Summary: Retrieve an OAuth token record.

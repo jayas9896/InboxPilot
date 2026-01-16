@@ -36,3 +36,4 @@ CL-0033 | OAuth token exchange | 2026-01-15 | Added token exchange for OAuth cal
 CL-0034 | OAuth token refresh | 2026-01-15 | Added refresh flow and access token retrieval for stored OAuth tokens.
 CL-0035 | Gmail OAuth ingestion | 2026-01-15 | Added Gmail OAuth ingestion via API/CLI with parsing helpers and tests.
 CL-0036 | Outlook OAuth ingestion | 2026-01-15 | Added Microsoft Graph ingestion via API/CLI with parsing helpers and tests.
+CL-0037 | Multi-user API keys | 2026-01-15 | Added user and API key management with per-user request scoping.

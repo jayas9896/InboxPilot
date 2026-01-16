@@ -171,6 +171,51 @@ def test_api_ingest_outlook(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert list_response.json()[0]["subject"] == "Outlook hello"
 
 
+
+
+def test_api_user_api_keys(tmp_path: Path) -> None:
+    """Summary: Verify user creation and API key issuance.
+
+    Importance: Ensures multi-user auth flows are functional.
+    Alternatives: Use CLI-only user management.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    create_user = client.post("/users", json={"display_name": "Test", "email": "test@example.com"})
+    assert create_user.status_code == 200
+    user_id = create_user.json()["id"]
+    create_key = client.post(f"/users/{user_id}/keys", json={"label": "test"})
+    assert create_key.status_code == 200
+    token = create_key.json()["token"]
+    fixture = tmp_path / "mock_messages.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_message_id": "api-user-1",
+            "subject": "User inbox",
+            "sender": "from@example.com",
+            "recipients": "to@example.com",
+            "timestamp": "2026-01-15T10:00:00",
+            "snippet": "Hello",
+            "body": "Hello"
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    ingest = client.post(
+        "/ingest/mock",
+        headers={"X-API-Key": token},
+        json={"limit": 1, "fixture_path": str(fixture)},
+    )
+    assert ingest.status_code == 200
+    list_response = client.get("/messages", headers={"X-API-Key": token})
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["subject"] == "User inbox"
+
+
 def test_api_search_messages(tmp_path: Path) -> None:
     """Summary: Verify message search endpoint works.
 

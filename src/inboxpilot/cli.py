@@ -177,6 +177,19 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("oauth-google", help="Print Google OAuth URL")
     subparsers.add_parser("oauth-microsoft", help="Print Microsoft OAuth URL")
 
+    create_user = subparsers.add_parser("create-user", help="Create or ensure a user")
+    create_user.add_argument("display_name", type=str)
+    create_user.add_argument("email", type=str)
+
+    subparsers.add_parser("list-users", help="List users")
+
+    create_key = subparsers.add_parser("create-api-key", help="Create an API key for a user")
+    create_key.add_argument("user_email", type=str)
+    create_key.add_argument("--label", type=str, default=None)
+
+    list_keys = subparsers.add_parser("list-api-keys", help="List API keys for a user")
+    list_keys.add_argument("user_email", type=str)
+
     return parser
 
 
@@ -446,6 +459,34 @@ def run_cli() -> None:
         config = AppConfig.from_env()
         state = create_state_token()
         print(build_microsoft_auth_url(config, state))
+        return
+
+    if args.command == "create-user":
+        user_id = services.users.create_user(args.display_name, args.email)
+        print(f"User {args.email} -> {user_id}")
+        return
+
+    if args.command == "list-users":
+        for user in services.users.list_users():
+            print(f"{user.id}: {user.display_name} <{user.email}>")
+        return
+
+    if args.command == "create-api-key":
+        user = services.users.get_user_by_email(args.user_email)
+        if not user:
+            raise ValueError("User not found")
+        key_id, token = services.api_keys.create_api_key(user.id, args.label)
+        print(f"Key {key_id}: {token}")
+        return
+
+    if args.command == "list-api-keys":
+        user = services.users.get_user_by_email(args.user_email)
+        if not user:
+            raise ValueError("User not found")
+        keys = services.api_keys.list_api_keys(user.id)
+        for key in keys:
+            label = key.label or ""
+            print(f"{key.id}: {label} ({key.created_at})")
         return
 
 

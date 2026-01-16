@@ -127,6 +127,26 @@ After the callback stores tokens, ingest with:
 python -m inboxpilot.cli ingest-outlook --limit 10
 ```
 
+
+## API Keys and Users
+InboxPilot supports per-user API keys for multi-user deployments.
+- Use the CLI to create users and issue API keys.
+- If `INBOXPILOT_API_KEY` is set, it acts as an admin key and is required for all API requests.
+
+CLI examples:
+```
+python -m inboxpilot.cli create-user "Alex" alex@example.com
+python -m inboxpilot.cli list-users
+python -m inboxpilot.cli create-api-key alex@example.com --label "primary"
+python -m inboxpilot.cli list-api-keys alex@example.com
+```
+
+API examples (admin only):
+```
+curl -X POST http://127.0.0.1:8000/users -H "X-API-Key: ADMIN_KEY" -H "Content-Type: application/json" -d "{\"display_name\":\"Alex\",\"email\":\"alex@example.com\"}"
+curl -X POST http://127.0.0.1:8000/users/1/keys -H "X-API-Key: ADMIN_KEY" -H "Content-Type: application/json" -d "{\"label\":\"primary\"}"
+```
+
 ## AI Providers
 Set `INBOXPILOT_AI_PROVIDER` to:
 - `mock` (default)

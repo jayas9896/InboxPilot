@@ -15,9 +15,9 @@
 - [x] OAuth token refresh for Google/Microsoft providers.
 - [x] Gmail OAuth ingestion (read-only).
 - [x] Outlook OAuth ingestion (read-only).
+- [x] Multi-user scaffolding with per-user API keys.
 - [x] Static analysis and tests configured for core logic.
 - [x] Git discipline with CL logs.
 
 ## Known Gaps / Next Steps
-- Multi-user auth and per-user API tokens.
 - Replace token obfuscation with a real secrets manager for production.

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+import secrets
+import hashlib
 from datetime import datetime, timedelta
 
 from inboxpilot.ai import AiProvider, estimate_tokens
@@ -26,15 +28,115 @@ from inboxpilot.models import (
 )
 from inboxpilot.storage.sqlite_store import (
     SqliteStore,
+    StoredApiKey,
     StoredConnection,
     StoredMeeting,
     StoredMessage,
     StoredTask,
+    StoredUser,
 )
 from inboxpilot.token_codec import TokenCodec
 
 
 logger = logging.getLogger(__name__)
+
+
+
+@dataclass(frozen=True)
+class UserService:
+    """Summary: Manages user records for multi-user workflows.
+
+    Importance: Provides user creation and lookup for per-user auth.
+    Alternatives: Use an external identity provider.
+    """
+
+    store: SqliteStore
+
+    def create_user(self, display_name: str, email: str) -> int:
+        """Summary: Create or ensure a user exists.
+
+        Importance: Allows onboarding multiple users without a schema rewrite.
+        Alternatives: Keep a single hardcoded user.
+        """
+
+        return self.store.ensure_user(User(display_name=display_name, email=email))
+
+    def list_users(self) -> list[StoredUser]:
+        """Summary: List all users.
+
+        Importance: Supports admin user management.
+        Alternatives: Store users externally.
+        """
+
+        return self.store.list_users()
+
+    def get_user_by_email(self, email: str) -> StoredUser | None:
+        """Summary: Fetch a user by email.
+
+        Importance: Enables resolving users for API key issuance.
+        Alternatives: Use user IDs only.
+        """
+
+        return self.store.get_user_by_email(email)
+
+
+@dataclass(frozen=True)
+class ApiKeyService:
+    """Summary: Issues and verifies API keys for users.
+
+    Importance: Enables per-user API authentication tokens.
+    Alternatives: Use OAuth or an external auth service.
+    """
+
+    store: SqliteStore
+    token_secret: str
+
+    def create_api_key(self, user_id: int, label: str | None = None) -> tuple[int, str]:
+        """Summary: Create a new API key for a user.
+
+        Importance: Returns a one-time plaintext token for client storage.
+        Alternatives: Store raw tokens in the database.
+        """
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = self._hash_token(raw_token)
+        key_id = self.store.create_api_key(
+            user_id=user_id,
+            token_hash=token_hash,
+            label=label,
+            created_at=datetime.utcnow().isoformat(),
+        )
+        return key_id, raw_token
+
+    def list_api_keys(self, user_id: int) -> list[StoredApiKey]:
+        """Summary: List API keys for a user.
+
+        Importance: Supports key rotation and auditing.
+        Alternatives: Store keys externally.
+        """
+
+        return self.store.list_api_keys(user_id)
+
+    def resolve_user_id(self, token: str) -> int | None:
+        """Summary: Resolve a user ID from an API key.
+
+        Importance: Supports per-user API authentication.
+        Alternatives: Validate tokens with an external service.
+        """
+
+        token_hash = self._hash_token(token)
+        return self.store.get_user_id_by_api_key(token_hash)
+
+    def _hash_token(self, token: str) -> str:
+        """Summary: Hash an API token with a secret salt.
+
+        Importance: Avoids storing raw API keys in the database.
+        Alternatives: Use an HSM or external secrets manager.
+        """
+
+        salt = self.token_secret or "inboxpilot"
+        digest = hashlib.sha256(f"{salt}:{token}".encode("utf-8")).hexdigest()
+        return digest
 
 
 @dataclass(frozen=True)
