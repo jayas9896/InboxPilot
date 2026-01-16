@@ -200,3 +200,52 @@ def normalize_recipients(recipients: Iterable[str]) -> str:
     """
 
     return ", ".join(recipients)
+
+
+class EmlEmailProvider(EmailProvider):
+    """Summary: Loads email messages from .eml files.
+
+    Importance: Supports local email ingestion without provider APIs.
+    Alternatives: Use IMAP or provider-specific APIs only.
+    """
+
+    def __init__(self, eml_paths: list[Path]) -> None:
+        """Summary: Initialize with a list of .eml file paths.
+
+        Importance: Enables batch ingestion of exported emails.
+        Alternatives: Read from a directory and glob files internally.
+        """
+
+        self._eml_paths = eml_paths
+
+    def fetch_recent(self, limit: int) -> list[Message]:
+        """Summary: Parse .eml files into Message objects.
+
+        Importance: Allows local-first ingestion of exported emails.
+        Alternatives: Skip body parsing for faster ingestion.
+        """
+
+        messages: list[Message] = []
+        for path in self._eml_paths[:limit]:
+            raw_email = path.read_bytes()
+            message = message_from_bytes(raw_email)
+            subject = _decode_header_value(message.get("Subject", ""))
+            sender = _decode_header_value(message.get("From", ""))
+            recipients = _decode_header_value(message.get("To", ""))
+            date_raw = message.get("Date", "")
+            timestamp = _parse_date(date_raw)
+            body = _extract_body(message)
+            snippet = body[:200].replace("\n", " ")
+            provider_message_id = message.get("Message-Id", path.name)
+            messages.append(
+                Message(
+                    provider_message_id=provider_message_id,
+                    subject=subject,
+                    sender=sender,
+                    recipients=recipients,
+                    timestamp=timestamp,
+                    snippet=snippet,
+                    body=body,
+                )
+            )
+        return messages

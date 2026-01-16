@@ -17,3 +17,4 @@ CL-0014 | Connection registry | 2026-01-15 | Added integration records and OAuth
 CL-0015 | Analytics snapshot | 2026-01-15 | Added stats counts for core entities.
 CL-0016 | iCalendar ingestion | 2026-01-15 | Added .ics calendar import support.
 CL-0017 | Notes listing | 2026-01-15 | Added note list endpoints and CLI support.
+CL-0018 | EML ingestion | 2026-01-15 | Added .eml email import support.

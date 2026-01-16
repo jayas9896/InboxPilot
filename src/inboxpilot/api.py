@@ -18,7 +18,7 @@ from inboxpilot.app import build_services
 from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
-from inboxpilot.email import MockEmailProvider
+from inboxpilot.email import EmlEmailProvider, MockEmailProvider
 
 
 class IngestRequest(BaseModel):
@@ -30,6 +30,17 @@ class IngestRequest(BaseModel):
 
     limit: int = Field(default=5, ge=1, le=200)
     fixture_path: str | None = None
+
+
+class EmlIngestRequest(BaseModel):
+    """Summary: Request payload for .eml ingestion.
+
+    Importance: Supports email ingestion without provider APIs.
+    Alternatives: Require IMAP or OAuth providers.
+    """
+
+    paths: list[str]
+    limit: int = Field(default=25, ge=1, le=200)
 
 
 class MeetingIngestRequest(BaseModel):
@@ -245,6 +256,22 @@ def create_app(config: AppConfig) -> FastAPI:
         if not fixture_path.exists():
             raise HTTPException(status_code=404, detail="Fixture not found")
         provider = MockEmailProvider(fixture_path)
+        messages = provider.fetch_recent(payload.limit)
+        ids = services.ingestion.ingest_messages(messages)
+        return {"ingested": len(ids)}
+
+    @app.post("/ingest/eml", dependencies=[Depends(require_api_key)])
+    def ingest_eml(payload: EmlIngestRequest) -> dict[str, Any]:
+        """Summary: Ingest emails from .eml files.
+
+        Importance: Enables local email imports without API auth.
+        Alternatives: Use IMAP or provider APIs.
+        """
+
+        eml_paths = [Path(path) for path in payload.paths]
+        if not eml_paths:
+            raise HTTPException(status_code=400, detail="No .eml paths provided")
+        provider = EmlEmailProvider(eml_paths)
         messages = provider.fetch_recent(payload.limit)
         ids = services.ingestion.ingest_messages(messages)
         return {"ingested": len(ids)}

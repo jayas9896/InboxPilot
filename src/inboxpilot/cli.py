@@ -14,7 +14,7 @@ from inboxpilot.app import build_services
 from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
-from inboxpilot.email import ImapEmailProvider, MockEmailProvider
+from inboxpilot.email import EmlEmailProvider, ImapEmailProvider, MockEmailProvider
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,6 +35,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest_imap = subparsers.add_parser("ingest-imap", help="Ingest emails via IMAP")
     ingest_imap.add_argument("--limit", type=int, default=5)
+
+    ingest_eml = subparsers.add_parser("ingest-eml", help="Ingest emails from .eml files")
+    ingest_eml.add_argument("paths", nargs="+", type=str)
+    ingest_eml.add_argument("--limit", type=int, default=25)
 
     ingest_calendar = subparsers.add_parser("ingest-calendar-mock", help="Ingest mock meetings")
     ingest_calendar.add_argument("--limit", type=int, default=5)
@@ -157,6 +161,13 @@ def run_cli() -> None:
         messages = provider.fetch_recent(args.limit)
         ids = services.ingestion.ingest_messages(messages)
         print(f"Ingested {len(ids)} messages from IMAP.")
+        return
+
+    if args.command == "ingest-eml":
+        provider = EmlEmailProvider([Path(path) for path in args.paths])
+        messages = provider.fetch_recent(args.limit)
+        ids = services.ingestion.ingest_messages(messages)
+        print(f"Ingested {len(ids)} messages from .eml files.")
         return
 
     if args.command == "ingest-calendar-mock":

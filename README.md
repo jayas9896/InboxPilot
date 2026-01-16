@@ -25,6 +25,7 @@ pip install -r requirements-dev.txt
 ### Run with Mock Data
 ```
 python -m inboxpilot.cli ingest-mock --limit 3
+python -m inboxpilot.cli ingest-eml path\\to\\email.eml
 python -m inboxpilot.cli list-messages
 python -m inboxpilot.cli add-category Recruiting --description "Hiring workflow"
 python -m inboxpilot.cli assign-category 1 1
@@ -65,6 +66,7 @@ curl -X POST http://127.0.0.1:8000/ingest/mock -H "Content-Type: application/jso
 curl http://127.0.0.1:8000/messages
 curl http://127.0.0.1:8000/stats
 curl -X POST http://127.0.0.1:8000/ingest/calendar-ics -H "Content-Type: application/json" -d "{\"path\":\"C:\\\\path\\\\to\\\\calendar.ics\"}"
+curl -X POST http://127.0.0.1:8000/ingest/eml -H "Content-Type: application/json" -d "{\"paths\":[\"C:\\\\path\\\\to\\\\email.eml\"]}"
 curl http://127.0.0.1:8000/notes?parent_type=message&parent_id=1
 ```
 
