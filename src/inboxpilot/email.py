@@ -6,6 +6,7 @@ Alternatives: Rely solely on provider SDKs with vendor lock-in.
 
 from __future__ import annotations
 
+import base64
 import imaplib
 import json
 import re
@@ -14,7 +15,9 @@ from datetime import datetime
 from email import message_from_bytes
 from email.header import decode_header
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
+import urllib.error
+import urllib.request
 
 from inboxpilot.models import Message
 
@@ -140,6 +143,173 @@ class ImapEmailProvider(EmailProvider):
             snippet=snippet,
             body=body,
         )
+
+
+class GmailEmailProvider(EmailProvider):
+    """Summary: Reads emails via the Gmail API using OAuth tokens.
+
+    Importance: Enables OAuth-based ingestion without IMAP passwords.
+    Alternatives: Use IMAP or a provider SDK.
+    """
+
+    def __init__(self, access_token: str, base_url: str) -> None:
+        """Summary: Initialize the Gmail provider.
+
+        Importance: Stores access token and API base URL for requests.
+        Alternatives: Fetch tokens on demand inside each request.
+        """
+
+        self._access_token = access_token
+        self._base_url = base_url.rstrip("/")
+
+    def fetch_recent(self, limit: int) -> list[Message]:
+        """Summary: Fetch recent Gmail messages using the API.
+
+        Importance: Provides OAuth-based read-only ingestion.
+        Alternatives: Use provider sync APIs or push notifications.
+        """
+
+        list_url = f"{self._base_url}/users/me/messages?maxResults={limit}"
+        payload = _gmail_api_get(list_url, self._access_token)
+        messages: list[Message] = []
+        for item in payload.get("messages", []):
+            message_id = item.get("id")
+            if not message_id:
+                continue
+            detail_url = f"{self._base_url}/users/me/messages/{message_id}?format=full"
+            message_payload = _gmail_api_get(detail_url, self._access_token)
+            parsed = _parse_gmail_message(message_payload)
+            if parsed:
+                messages.append(parsed)
+        return messages
+
+
+def _gmail_api_get(url: str, access_token: str) -> dict[str, Any]:
+    """Summary: Fetch JSON data from the Gmail API.
+
+    Importance: Encapsulates Gmail API calls without new dependencies.
+    Alternatives: Use a third-party HTTP client or SDK.
+    """
+
+    request = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {access_token}"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            raw = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8")
+        raise RuntimeError(f"Gmail API request failed: {error_body or exc.reason}") from exc
+    return json.loads(raw)
+
+
+def _parse_gmail_message(message: dict[str, Any]) -> Message | None:
+    """Summary: Parse a Gmail message payload into a Message.
+
+    Importance: Normalizes Gmail payloads into the core message model.
+    Alternatives: Store raw Gmail payloads and parse later.
+    """
+
+    payload = message.get("payload") or {}
+    headers = _parse_gmail_headers(payload.get("headers", []))
+    subject = headers.get("Subject", "")
+    sender = headers.get("From", "")
+    recipients = headers.get("To", "")
+    date_raw = headers.get("Date", "")
+    internal_date = message.get("internalDate")
+    if internal_date:
+        try:
+            timestamp = datetime.fromtimestamp(int(internal_date) / 1000)
+        except ValueError:
+            timestamp = _parse_date(date_raw)
+    else:
+        timestamp = _parse_date(date_raw)
+    body = _extract_gmail_body(payload)
+    snippet = message.get("snippet", "")
+    if not snippet:
+        snippet = body[:200].replace("\n", " ") if body else ""
+    provider_message_id = message.get("id", "")
+    return Message(
+        provider_message_id=provider_message_id,
+        subject=subject,
+        sender=sender,
+        recipients=recipients,
+        timestamp=timestamp,
+        snippet=snippet,
+        body=body or snippet,
+    )
+
+
+def _parse_gmail_headers(headers: list[dict[str, Any]]) -> dict[str, str]:
+    """Summary: Normalize Gmail header list into a dictionary.
+
+    Importance: Simplifies access to header values for parsing.
+    Alternatives: Scan header lists inline for each field.
+    """
+
+    normalized: dict[str, str] = {}
+    for header in headers:
+        name = header.get("name")
+        value = header.get("value")
+        if name and value:
+            normalized[name] = value
+    return normalized
+
+
+def _extract_gmail_body(payload: dict[str, Any]) -> str:
+    """Summary: Extract a plain text body from a Gmail payload.
+
+    Importance: Provides readable content for summarization and drafting.
+    Alternatives: Store the snippet only for Gmail messages.
+    """
+
+    text_parts: list[str] = []
+    fallback_parts: list[str] = []
+    for part in _walk_gmail_parts(payload):
+        mime_type = part.get("mimeType")
+        body = part.get("body", {})
+        data = body.get("data")
+        if not data:
+            continue
+        decoded = _decode_base64url(data)
+        if mime_type == "text/plain":
+            text_parts.append(decoded)
+        else:
+            fallback_parts.append(decoded)
+    if text_parts:
+        return "
+".join(item.strip() for item in text_parts if item.strip()).strip()
+    if fallback_parts:
+        return "
+".join(item.strip() for item in fallback_parts if item.strip()).strip()
+    return ""
+
+
+def _walk_gmail_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Summary: Walk Gmail payload parts recursively.
+
+    Importance: Supports nested multipart payloads from Gmail.
+    Alternatives: Only inspect the top-level payload.
+    """
+
+    parts: list[dict[str, Any]] = [payload]
+    for part in payload.get("parts", []) or []:
+        parts.extend(_walk_gmail_parts(part))
+    return parts
+
+
+def _decode_base64url(data: str) -> str:
+    """Summary: Decode base64url-encoded Gmail content.
+
+    Importance: Gmail payloads use URL-safe base64 encoding.
+    Alternatives: Use a third-party Gmail client library.
+    """
+
+    padded = data + "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8", errors="ignore")
+
 
 
 def _decode_header_value(value: str) -> str:

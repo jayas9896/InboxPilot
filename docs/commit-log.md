@@ -34,3 +34,4 @@ CL-0031 | Expanded templates | 2026-01-15 | Added real estate, sales, and person
 CL-0032 | MVP status checklist | 2026-01-15 | Documented MVP completion checklist and gaps.
 CL-0033 | OAuth token exchange | 2026-01-15 | Added token exchange for OAuth callbacks with configurable token endpoints.
 CL-0034 | OAuth token refresh | 2026-01-15 | Added refresh flow and access token retrieval for stored OAuth tokens.
+CL-0035 | Gmail OAuth ingestion | 2026-01-15 | Added Gmail OAuth ingestion via API/CLI with parsing helpers and tests.

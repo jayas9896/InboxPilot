@@ -81,6 +81,7 @@ curl "http://127.0.0.1:8000/messages/search?query=project"
 curl http://127.0.0.1:8000/stats
 curl -X POST http://127.0.0.1:8000/ingest/calendar-ics -H "Content-Type: application/json" -d "{\"path\":\"C:\\\\path\\\\to\\\\calendar.ics\"}"
 curl -X POST http://127.0.0.1:8000/ingest/eml -H "Content-Type: application/json" -d "{\"paths\":[\"C:\\\\path\\\\to\\\\email.eml\"]}"
+curl -X POST http://127.0.0.1:8000/ingest/gmail -H "Content-Type: application/json" -d "{\"limit\":3}"
 curl "http://127.0.0.1:8000/meetings/search?query=project"
 curl http://127.0.0.1:8000/notes?parent_type=message&parent_id=1
 curl http://127.0.0.1:8000/oauth/google
@@ -108,6 +109,14 @@ Then ingest:
 python -m inboxpilot.cli ingest-imap --limit 10
 ```
 
+
+## Run with Gmail OAuth (Read-only)
+Set OAuth client IDs, secrets, and redirect URL, then complete the OAuth flow.
+After the callback stores tokens, ingest with:
+```
+python -m inboxpilot.cli ingest-gmail --limit 10
+```
+
 ## AI Providers
 Set `INBOXPILOT_AI_PROVIDER` to:
 - `mock` (default)
@@ -122,6 +131,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - OAuth client IDs and secrets live in `.env` as `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
 - Set `INBOXPILOT_OAUTH_REDIRECT_URI` to match your OAuth app redirect URL.
 - Token endpoint URLs can be overridden with `INBOXPILOT_GOOGLE_TOKEN_URL` and `INBOXPILOT_MICROSOFT_TOKEN_URL`.
+- Gmail API base URL can be overridden with `INBOXPILOT_GOOGLE_API_BASE_URL`.
 - Triage keywords can be customized with `INBOXPILOT_TRIAGE_HIGH_KEYWORDS` and `INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS`.
 - OAuth callback at `/oauth/callback` exchanges the auth code for access and refresh tokens and stores them.
 - Token refresh is supported when stored tokens expire (requires refresh token).

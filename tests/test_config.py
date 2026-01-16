@@ -98,6 +98,7 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert config.oauth_redirect_uri == "http://localhost:8000/oauth/callback"
     assert config.google_token_url == "https://oauth2.googleapis.com/token"
     assert config.microsoft_token_url == "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+    assert config.google_api_base_url == "https://gmail.googleapis.com/gmail/v1"
     assert config.triage_high_keywords
     assert config.triage_medium_keywords
     assert config.token_secret == ""

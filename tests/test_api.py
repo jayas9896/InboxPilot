@@ -7,12 +7,14 @@ Alternatives: Use manual curl testing only.
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import datetime
 
 import pytest
 
 from fastapi.testclient import TestClient
 
 from inboxpilot.api import create_app
+from inboxpilot.models import Message
 from inboxpilot.config import AppConfig
 
 
@@ -46,6 +48,7 @@ def _build_config(db_path: str) -> AppConfig:
         oauth_redirect_uri="http://localhost:8000/oauth/callback",
         google_token_url="https://oauth2.googleapis.com/token",
         microsoft_token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        google_api_base_url="https://gmail.googleapis.com/gmail/v1",
         triage_high_keywords=["urgent"],
         triage_medium_keywords=["review"],
         token_secret="secret",
@@ -83,6 +86,47 @@ def test_api_ingest_and_list_messages(tmp_path: Path) -> None:
     list_response = client.get("/messages")
     assert list_response.status_code == 200
     assert list_response.json()[0]["subject"] == "Hello"
+
+
+
+
+def test_api_ingest_gmail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Summary: Verify Gmail ingestion endpoint stores messages.
+
+    Importance: Ensures OAuth-backed ingestion works via the API.
+    Alternatives: Use CLI-only Gmail ingestion.
+    """
+
+    class _FakeGmailProvider:
+        def __init__(self, access_token: str, base_url: str) -> None:
+            self.access_token = access_token
+            self.base_url = base_url
+
+        def fetch_recent(self, limit: int) -> list[Message]:
+            return [
+                Message(
+                    provider_message_id="gmail-1",
+                    subject="Gmail hello",
+                    sender="from@gmail.com",
+                    recipients="to@example.com",
+                    timestamp=datetime(2026, 1, 15, 10, 0, 0),
+                    snippet="Hello",
+                    body="Hello",
+                )
+            ]
+
+    monkeypatch.setattr("inboxpilot.api.GmailEmailProvider", _FakeGmailProvider)
+    monkeypatch.setattr(
+        "inboxpilot.services.TokenService.get_access_token",
+        lambda _self, _provider: "token",
+    )
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    response = client.post("/ingest/gmail", json={"limit": 1})
+    assert response.status_code == 200
+    list_response = client.get("/messages")
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["subject"] == "Gmail hello"
 
 
 def test_api_search_messages(tmp_path: Path) -> None:

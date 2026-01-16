@@ -13,10 +13,11 @@
 - [x] AI abstraction layer supports local and cloud providers.
 - [x] OAuth token exchange for Google/Microsoft providers.
 - [x] OAuth token refresh for Google/Microsoft providers.
+- [x] Gmail OAuth ingestion (read-only).
 - [x] Static analysis and tests configured for core logic.
 - [x] Git discipline with CL logs.
 
 ## Known Gaps / Next Steps
-- Provider ingestion via OAuth (Gmail/Outlook) beyond IMAP/.eml.
+- Provider ingestion via OAuth for Outlook (Microsoft Graph).
 - Multi-user auth and per-user API tokens.
 - Replace token obfuscation with a real secrets manager for production.
