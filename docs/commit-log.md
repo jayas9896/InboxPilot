@@ -25,3 +25,4 @@ CL-0022 | OAuth callback | 2026-01-15 | Added OAuth callback handling and UI lin
 CL-0023 | Task status updates | 2026-01-15 | Added task status update support.
 CL-0024 | Token storage | 2026-01-15 | Added obfuscated token storage for OAuth.
 CL-0025 | OAuth token placeholder | 2026-01-15 | Store placeholder token on OAuth callback.
+CL-0026 | Message search | 2026-01-15 | Added search endpoints and UI.

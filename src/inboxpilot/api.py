@@ -398,6 +398,27 @@ def create_app(config: AppConfig) -> FastAPI:
             for message in services.store.list_messages(limit, user_id=services.user_id)
         ]
 
+    @app.get("/messages/search", dependencies=[Depends(require_api_key)])
+    def search_messages(query: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Summary: Search stored messages by query.
+
+        Importance: Provides contextual search over the inbox.
+        Alternatives: Use AI chat only for discovery.
+        """
+
+        return [
+            {
+                "id": message.id,
+                "provider_message_id": message.provider_message_id,
+                "subject": message.subject,
+                "sender": message.sender,
+                "recipients": message.recipients,
+                "timestamp": message.timestamp,
+                "snippet": message.snippet,
+            }
+            for message in services.store.search_messages(query, limit, user_id=services.user_id)
+        ]
+
     @app.get("/meetings", dependencies=[Depends(require_api_key)])
     def list_meetings(limit: int = 10) -> list[dict[str, Any]]:
         """Summary: List recent meetings.

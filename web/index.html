@@ -179,6 +179,13 @@
       </div>
 
       <div class="card">
+        <h2>Search</h2>
+        <input id="searchQuery" placeholder="Search messages..." />
+        <button id="searchMessages">Search</button>
+        <div class="list" id="searchList"></div>
+      </div>
+
+      <div class="card">
         <h2>Meetings</h2>
         <button id="loadMeetings">Refresh Meetings</button>
         <div class="list" id="meetingsList"></div>
@@ -311,6 +318,17 @@
         const response = await fetch(`${api}/messages`, { headers: authHeaders() });
         const payload = await response.json();
         renderList(document.getElementById("messagesList"), payload, (item) => {
+          return `#${item.id} ${item.subject} (${item.sender})`;
+        });
+      });
+
+      document.getElementById("searchMessages").addEventListener("click", async () => {
+        const query = document.getElementById("searchQuery").value;
+        const response = await fetch(`${api}/messages/search?query=${encodeURIComponent(query)}`, {
+          headers: authHeaders(),
+        });
+        const payload = await response.json();
+        renderList(document.getElementById("searchList"), payload, (item) => {
           return `#${item.id} ${item.subject} (${item.sender})`;
         });
       });

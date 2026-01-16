@@ -64,6 +64,10 @@ def build_parser() -> argparse.ArgumentParser:
     list_messages = subparsers.add_parser("list-messages", help="List messages")
     list_messages.add_argument("--limit", type=int, default=10)
 
+    search_messages = subparsers.add_parser("search", help="Search messages")
+    search_messages.add_argument("query", type=str)
+    search_messages.add_argument("--limit", type=int, default=10)
+
     list_meetings = subparsers.add_parser("list-meetings", help="List meetings")
     list_meetings.add_argument("--limit", type=int, default=10)
 
@@ -228,6 +232,12 @@ def run_cli() -> None:
 
     if args.command == "list-messages":
         for message in services.store.list_messages(args.limit, user_id=services.user_id):
+            print(f"{message.id}: {message.subject} ({message.sender})")
+        return
+
+    if args.command == "search":
+        results = services.store.search_messages(args.query, args.limit, user_id=services.user_id)
+        for message in results:
             print(f"{message.id}: {message.subject} ({message.sender})")
         return
 

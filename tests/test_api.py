@@ -81,6 +81,38 @@ def test_api_ingest_and_list_messages(tmp_path: Path) -> None:
     assert list_response.json()[0]["subject"] == "Hello"
 
 
+def test_api_search_messages(tmp_path: Path) -> None:
+    """Summary: Verify message search endpoint works.
+
+    Importance: Ensures contextual search is available via HTTP.
+    Alternatives: Use AI chat only for discovery.
+    """
+
+    fixture = tmp_path / "mock_messages.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_message_id": "search-1",
+            "subject": "Project update",
+            "sender": "from@example.com",
+            "recipients": "to@example.com",
+            "timestamp": "2026-01-15T10:00:00",
+            "snippet": "Update",
+            "body": "Project update details."
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    client.post("/ingest/mock", json={"limit": 1, "fixture_path": str(fixture)})
+    response = client.get("/messages/search", params={"query": "Project"})
+    assert response.status_code == 200
+    assert response.json()[0]["subject"] == "Project update"
+
+
 def test_api_categories_and_templates(tmp_path: Path) -> None:
     """Summary: Verify category endpoints and template listing.
 
