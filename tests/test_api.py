@@ -260,6 +260,41 @@ def test_api_meeting_summary(tmp_path: Path) -> None:
     assert summary_response.status_code == 200
 
 
+def test_api_meeting_transcript_file(tmp_path: Path) -> None:
+    """Summary: Verify transcript file ingestion endpoint.
+
+    Importance: Ensures transcript uploads can be ingested from file paths.
+    Alternatives: Use paste-based transcripts only.
+    """
+
+    fixture = tmp_path / "mock_meetings.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_event_id": "meet-1",
+            "title": "Sync",
+            "participants": "a@example.com",
+            "start_time": "2026-01-15T10:00:00",
+            "end_time": "2026-01-15T10:30:00",
+            "transcript_ref": null
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text("We agreed on next steps.", encoding="utf-8")
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    client.post("/ingest/calendar-mock", json={"limit": 1, "fixture_path": str(fixture)})
+    response = client.post(
+        "/meetings/transcript-file",
+        json={"meeting_id": 1, "path": str(transcript)},
+    )
+    assert response.status_code == 200
+
+
 def test_api_connections(tmp_path: Path) -> None:
     """Summary: Verify connection endpoints work over HTTP.
 

@@ -122,6 +122,12 @@ def build_parser() -> argparse.ArgumentParser:
     add_transcript.add_argument("meeting_id", type=int)
     add_transcript.add_argument("content", type=str)
 
+    add_transcript_file = subparsers.add_parser(
+        "add-meeting-transcript-file", help="Add meeting transcript from a file"
+    )
+    add_transcript_file.add_argument("meeting_id", type=int)
+    add_transcript_file.add_argument("path", type=str)
+
     summarize_meeting = subparsers.add_parser(
         "summarize-meeting", help="Summarize a meeting transcript"
     )
@@ -321,6 +327,12 @@ def run_cli() -> None:
 
     if args.command == "add-meeting-transcript":
         services.meeting_notes.add_transcript(args.meeting_id, args.content)
+        print("Meeting transcript saved.")
+        return
+
+    if args.command == "add-meeting-transcript-file":
+        content = Path(args.path).read_text(encoding="utf-8")
+        services.meeting_notes.add_transcript(args.meeting_id, content)
         print("Meeting transcript saved.")
         return
 

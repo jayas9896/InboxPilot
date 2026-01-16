@@ -220,6 +220,17 @@ class MeetingTranscriptRequest(BaseModel):
     content: str
 
 
+class MeetingTranscriptFileRequest(BaseModel):
+    """Summary: Request payload for transcript file ingestion.
+
+    Importance: Supports transcript uploads via file paths in local deployments.
+    Alternatives: Accept file uploads directly in a multipart endpoint.
+    """
+
+    meeting_id: int
+    path: str
+
+
 class MeetingSummaryRequest(BaseModel):
     """Summary: Request payload for meeting summary generation.
 
@@ -693,6 +704,21 @@ def create_app(config: AppConfig) -> FastAPI:
         """
 
         services.meeting_notes.add_transcript(payload.meeting_id, payload.content)
+        return {"status": "ok"}
+
+    @app.post("/meetings/transcript-file", dependencies=[Depends(require_api_key)])
+    def add_meeting_transcript_file(payload: MeetingTranscriptFileRequest) -> dict[str, Any]:
+        """Summary: Store a meeting transcript from a local file path.
+
+        Importance: Supports transcript ingestion without paste-based workflows.
+        Alternatives: Use file upload endpoints with multipart support.
+        """
+
+        transcript_path = Path(payload.path)
+        if not transcript_path.exists():
+            raise HTTPException(status_code=404, detail="Transcript file not found")
+        content = transcript_path.read_text(encoding="utf-8")
+        services.meeting_notes.add_transcript(payload.meeting_id, content)
         return {"status": "ok"}
 
     @app.post("/meetings/summary", dependencies=[Depends(require_api_key)])
