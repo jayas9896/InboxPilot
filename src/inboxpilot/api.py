@@ -19,6 +19,7 @@ from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
 from inboxpilot.email import EmlEmailProvider, MockEmailProvider
+from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url, create_state_token
 
 
 class IngestRequest(BaseModel):
@@ -589,6 +590,28 @@ def create_app(config: AppConfig) -> FastAPI:
         """
 
         return services.stats.snapshot()
+
+    @app.get("/oauth/google", dependencies=[Depends(require_api_key)])
+    def oauth_google() -> dict[str, str]:
+        """Summary: Return the Google OAuth authorization URL.
+
+        Importance: Enables initiating OAuth flows for Gmail/Calendar.
+        Alternatives: Use CLI-only OAuth helpers.
+        """
+
+        state = create_state_token()
+        return {"url": build_google_auth_url(config, state), "state": state}
+
+    @app.get("/oauth/microsoft", dependencies=[Depends(require_api_key)])
+    def oauth_microsoft() -> dict[str, str]:
+        """Summary: Return the Microsoft OAuth authorization URL.
+
+        Importance: Enables initiating OAuth flows for Outlook/Calendar.
+        Alternatives: Use CLI-only OAuth helpers.
+        """
+
+        state = create_state_token()
+        return {"url": build_microsoft_auth_url(config, state), "state": state}
 
     return app
 

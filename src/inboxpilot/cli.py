@@ -15,6 +15,7 @@ from inboxpilot.calendar import IcsCalendarProvider, MockCalendarProvider
 from inboxpilot.category_templates import list_templates, load_template
 from inboxpilot.config import AppConfig
 from inboxpilot.email import EmlEmailProvider, ImapEmailProvider, MockEmailProvider
+from inboxpilot.oauth import build_google_auth_url, build_microsoft_auth_url, create_state_token
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -125,6 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list-connections", help="List integration records")
 
     subparsers.add_parser("stats", help="Show inbox statistics")
+
+    subparsers.add_parser("oauth-google", help="Print Google OAuth URL")
+    subparsers.add_parser("oauth-microsoft", help="Print Microsoft OAuth URL")
 
     return parser
 
@@ -301,6 +305,18 @@ def run_cli() -> None:
         snapshot = services.stats.snapshot()
         for key, value in snapshot.items():
             print(f"{key}: {value}")
+        return
+
+    if args.command == "oauth-google":
+        config = AppConfig.from_env()
+        state = create_state_token()
+        print(build_google_auth_url(config, state))
+        return
+
+    if args.command == "oauth-microsoft":
+        config = AppConfig.from_env()
+        state = create_state_token()
+        print(build_microsoft_auth_url(config, state))
         return
 
 

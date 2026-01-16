@@ -45,6 +45,8 @@ python -m inboxpilot.cli list-notes message 1
 python -m inboxpilot.cli add-connection email gmail connected --details "read-only"
 python -m inboxpilot.cli list-connections
 python -m inboxpilot.cli stats
+python -m inboxpilot.cli oauth-google
+python -m inboxpilot.cli oauth-microsoft
 ```
 
 ### Run the API (FastAPI)
@@ -68,6 +70,8 @@ curl http://127.0.0.1:8000/stats
 curl -X POST http://127.0.0.1:8000/ingest/calendar-ics -H "Content-Type: application/json" -d "{\"path\":\"C:\\\\path\\\\to\\\\calendar.ics\"}"
 curl -X POST http://127.0.0.1:8000/ingest/eml -H "Content-Type: application/json" -d "{\"paths\":[\"C:\\\\path\\\\to\\\\email.eml\"]}"
 curl http://127.0.0.1:8000/notes?parent_type=message&parent_id=1
+curl http://127.0.0.1:8000/oauth/google
+curl http://127.0.0.1:8000/oauth/microsoft
 ```
 
 ### Run with IMAP (Read-only)
@@ -94,6 +98,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - Single-user mode uses `INBOXPILOT_DEFAULT_USER_NAME` and `INBOXPILOT_DEFAULT_USER_EMAIL`.
 - Set `INBOXPILOT_API_KEY` to require `X-API-Key` for API requests.
 - OAuth client IDs and secrets live in `.env` as `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
+- Set `INBOXPILOT_OAUTH_REDIRECT_URI` to match your OAuth app redirect URL.
 
 ## Categories
 - Categories are first-class objects stored in SQLite.

@@ -20,6 +20,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - API Security: Optional API key header for local/private deployments.
 - Integration Registry: Connection records for email/calendar providers without storing secrets.
 - Analytics Snapshot: Lightweight counts for messages, meetings, categories, tasks, and notes.
+- OAuth Helpers: Provider authorization URL generation for Gmail and Microsoft Graph.
 
 ## Data Flow
 1. User connects an email provider in read-only mode.

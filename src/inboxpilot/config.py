@@ -39,6 +39,7 @@ class AppConfig:
     google_client_secret: str
     microsoft_client_id: str
     microsoft_client_secret: str
+    oauth_redirect_uri: str
 
     @staticmethod
     def from_env() -> "AppConfig":
@@ -75,6 +76,9 @@ class AppConfig:
             microsoft_client_id=os.getenv("MICROSOFT_CLIENT_ID", defaults["microsoft_client_id"]),
             microsoft_client_secret=os.getenv(
                 "MICROSOFT_CLIENT_SECRET", defaults["microsoft_client_secret"]
+            ),
+            oauth_redirect_uri=os.getenv(
+                "INBOXPILOT_OAUTH_REDIRECT_URI", defaults["oauth_redirect_uri"]
             ),
         )
 

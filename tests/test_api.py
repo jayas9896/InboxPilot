@@ -41,6 +41,7 @@ def _build_config(db_path: str) -> AppConfig:
         google_client_secret="",
         microsoft_client_id="",
         microsoft_client_secret="",
+        oauth_redirect_uri="http://localhost:8000/oauth/callback",
     )
 
 

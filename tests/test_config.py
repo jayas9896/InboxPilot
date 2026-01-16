@@ -70,7 +70,8 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
           \"google_client_id\": \"\",
           \"google_client_secret\": \"\",
           \"microsoft_client_id\": \"\",
-          \"microsoft_client_secret\": \"\"
+          \"microsoft_client_secret\": \"\",
+          \"oauth_redirect_uri\": \"http://localhost:8000/oauth/callback\"
         }
         """.strip(),
         encoding="utf-8",
@@ -89,3 +90,4 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert config.google_client_secret == ""
     assert config.microsoft_client_id == ""
     assert config.microsoft_client_secret == ""
+    assert config.oauth_redirect_uri == "http://localhost:8000/oauth/callback"
