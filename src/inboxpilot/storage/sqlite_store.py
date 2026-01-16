@@ -764,6 +764,43 @@ class SqliteStore:
             rows = cursor.fetchall()
         return [StoredMeeting(*row) for row in rows]
 
+    def search_meetings(
+        self, query: str, limit: int, user_id: int | None = None
+    ) -> list[StoredMeeting]:
+        """Summary: Search meetings by title or participants.
+
+        Importance: Enables contextual queries over meetings.
+        Alternatives: Use only list_meetings with manual filtering.
+        """
+
+        pattern = f"%{query}%"
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute(
+                    """
+                    SELECT id, provider_event_id, title, participants, start_time, end_time, transcript_ref
+                    FROM meetings
+                    WHERE title LIKE ? OR participants LIKE ?
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                    """,
+                    (pattern, pattern, limit),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, provider_event_id, title, participants, start_time, end_time, transcript_ref
+                    FROM meetings
+                    WHERE user_id = ? AND (title LIKE ? OR participants LIKE ?)
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                    """,
+                    (user_id, pattern, pattern, limit),
+                )
+            rows = cursor.fetchall()
+        return [StoredMeeting(*row) for row in rows]
+
     def assign_category(self, message_id: int, category_id: int) -> None:
         """Summary: Assign a category to a message.
 

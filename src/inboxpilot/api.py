@@ -440,6 +440,29 @@ def create_app(config: AppConfig) -> FastAPI:
             for meeting in services.meetings.list_meetings(limit)
         ]
 
+    @app.get("/meetings/search", dependencies=[Depends(require_api_key)])
+    def search_meetings(query: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Summary: Search meetings by title or participants.
+
+        Importance: Enables meeting discovery via the API.
+        Alternatives: Use list_meetings only.
+        """
+
+        return [
+            {
+                "id": meeting.id,
+                "provider_event_id": meeting.provider_event_id,
+                "title": meeting.title,
+                "participants": meeting.participants,
+                "start_time": meeting.start_time,
+                "end_time": meeting.end_time,
+                "transcript_ref": meeting.transcript_ref,
+            }
+            for meeting in services.store.search_meetings(
+                query, limit, user_id=services.user_id
+            )
+        ]
+
     @app.get("/categories", dependencies=[Depends(require_api_key)])
     def list_categories() -> list[dict[str, Any]]:
         """Summary: List existing categories.

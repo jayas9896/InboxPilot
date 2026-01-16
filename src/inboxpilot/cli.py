@@ -71,6 +71,10 @@ def build_parser() -> argparse.ArgumentParser:
     list_meetings = subparsers.add_parser("list-meetings", help="List meetings")
     list_meetings.add_argument("--limit", type=int, default=10)
 
+    search_meetings = subparsers.add_parser("search-meetings", help="Search meetings")
+    search_meetings.add_argument("query", type=str)
+    search_meetings.add_argument("--limit", type=int, default=10)
+
     assign_category = subparsers.add_parser("assign-category", help="Assign category")
     assign_category.add_argument("message_id", type=int)
     assign_category.add_argument("category_id", type=int)
@@ -243,6 +247,14 @@ def run_cli() -> None:
 
     if args.command == "list-meetings":
         for meeting in services.meetings.list_meetings(args.limit):
+            print(f"{meeting.id}: {meeting.title} ({meeting.start_time})")
+        return
+
+    if args.command == "search-meetings":
+        meetings = services.store.search_meetings(
+            args.query, args.limit, user_id=services.user_id
+        )
+        for meeting in meetings:
             print(f"{meeting.id}: {meeting.title} ({meeting.start_time})")
         return
 

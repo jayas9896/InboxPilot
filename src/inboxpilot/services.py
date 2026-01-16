@@ -228,11 +228,16 @@ class ChatService:
         """
 
         messages = self.store.search_messages(query, limit, user_id=self.user_id)
-        context = "\n\n".join(self._format_message(message) for message in messages)
+        meetings = self.store.search_meetings(query, limit, user_id=self.user_id)
+        message_context = "\n\n".join(self._format_message(message) for message in messages)
+        meeting_context = "\n\n".join(self._format_meeting(meeting) for meeting in meetings)
+        context = "\n\n".join(
+            [section for section in [message_context, meeting_context] if section]
+        )
         prompt = (
-            "Answer the user question using the message context.\n\n"
+            "Answer the user question using the message and meeting context.\n\n"
             f"Question: {query}\n\n"
-            f"Messages:\n{context}\n"
+            f"Context:\n{context}\n"
         )
         response_text, latency_ms = self.ai_provider.generate_text(prompt, purpose="answer")
         self._log_ai(prompt, "answer", response_text, latency_ms)
@@ -295,6 +300,20 @@ class ChatService:
             f"From: {message.sender}\n"
             f"Subject: {message.subject}\n"
             f"Snippet: {message.snippet}\n"
+        )
+
+    def _format_meeting(self, meeting: StoredMeeting) -> str:
+        """Summary: Format a stored meeting for AI context.
+
+        Importance: Allows chat to answer questions about meetings.
+        Alternatives: Exclude meetings from chat context.
+        """
+
+        return (
+            f"MEETING ID: {meeting.id}\n"
+            f"Title: {meeting.title}\n"
+            f"Participants: {meeting.participants}\n"
+            f"Start: {meeting.start_time}\n"
         )
 
     def _log_ai(self, prompt: str, purpose: str, response_text: str, latency_ms: int) -> None:

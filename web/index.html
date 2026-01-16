@@ -192,6 +192,13 @@
       </div>
 
       <div class="card">
+        <h2>Meeting Search</h2>
+        <input id="meetingQuery" placeholder="Search meetings..." />
+        <button id="searchMeetings">Search</button>
+        <div class="list" id="meetingSearchList"></div>
+      </div>
+
+      <div class="card">
         <h2>Chat Assistant</h2>
         <input id="chatQuery" placeholder="Ask about your inbox..." />
         <button id="askChat">Ask</button>
@@ -337,6 +344,18 @@
         const response = await fetch(`${api}/meetings`, { headers: authHeaders() });
         const payload = await response.json();
         renderList(document.getElementById("meetingsList"), payload, (item) => {
+          return `#${item.id} ${item.title}`;
+        });
+      });
+
+      document.getElementById("searchMeetings").addEventListener("click", async () => {
+        const query = document.getElementById("meetingQuery").value;
+        const response = await fetch(
+          `${api}/meetings/search?query=${encodeURIComponent(query)}`,
+          { headers: authHeaders() }
+        );
+        const payload = await response.json();
+        renderList(document.getElementById("meetingSearchList"), payload, (item) => {
           return `#${item.id} ${item.title}`;
         });
       });

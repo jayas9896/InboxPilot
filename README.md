@@ -34,6 +34,7 @@ python -m inboxpilot.cli suggest-categories 1
 python -m inboxpilot.cli ingest-calendar-mock --limit 2
 python -m inboxpilot.cli ingest-calendar-ics path\\to\\calendar.ics
 python -m inboxpilot.cli list-meetings
+python -m inboxpilot.cli search-meetings "project"
 python -m inboxpilot.cli chat "What emails need follow up?"
 python -m inboxpilot.cli draft 1 "Thank them and ask for availability"
 python -m inboxpilot.cli add-task 1 "Send revised deck"
@@ -76,6 +77,7 @@ curl "http://127.0.0.1:8000/messages/search?query=project"
 curl http://127.0.0.1:8000/stats
 curl -X POST http://127.0.0.1:8000/ingest/calendar-ics -H "Content-Type: application/json" -d "{\"path\":\"C:\\\\path\\\\to\\\\calendar.ics\"}"
 curl -X POST http://127.0.0.1:8000/ingest/eml -H "Content-Type: application/json" -d "{\"paths\":[\"C:\\\\path\\\\to\\\\email.eml\"]}"
+curl "http://127.0.0.1:8000/meetings/search?query=project"
 curl http://127.0.0.1:8000/notes?parent_type=message&parent_id=1
 curl http://127.0.0.1:8000/oauth/google
 curl http://127.0.0.1:8000/oauth/microsoft

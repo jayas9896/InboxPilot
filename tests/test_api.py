@@ -113,6 +113,37 @@ def test_api_search_messages(tmp_path: Path) -> None:
     assert response.json()[0]["subject"] == "Project update"
 
 
+def test_api_search_meetings(tmp_path: Path) -> None:
+    """Summary: Verify meeting search endpoint works.
+
+    Importance: Ensures meeting discovery is available via HTTP.
+    Alternatives: Use list_meetings only.
+    """
+
+    fixture = tmp_path / "mock_meetings.json"
+    fixture.write_text(
+        """
+        [
+          {
+            "provider_event_id": "meet-1",
+            "title": "Project kickoff",
+            "participants": "a@example.com",
+            "start_time": "2026-01-15T10:00:00",
+            "end_time": "2026-01-15T10:30:00",
+            "transcript_ref": null
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    client.post("/ingest/calendar-mock", json={"limit": 1, "fixture_path": str(fixture)})
+    response = client.get("/meetings/search", params={"query": "Project"})
+    assert response.status_code == 200
+    assert response.json()[0]["title"] == "Project kickoff"
+
+
 def test_api_categories_and_templates(tmp_path: Path) -> None:
     """Summary: Verify category endpoints and template listing.
 

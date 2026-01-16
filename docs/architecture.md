@@ -8,7 +8,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - HTTP API: FastAPI layer for UI clients and integrations.
 - Web Dashboard: Static HTML interface served by the API for local use.
 - Email Integration: Read-only connectors (IMAP, provider APIs, or .eml imports) that ingest metadata and message bodies.
-- Calendar Integration: Read-only connectors that ingest meetings, participants, and transcripts when available, including .ics imports.
+- Calendar Integration: Read-only connectors that ingest meetings, participants, transcripts, and support search, including .ics imports.
 - Category System: First-class category model, templates, and assignment logic (manual and AI-assisted).
 - Task & Follow-up System: Structured action items linked to messages or meetings.
 - Meeting Notes: Transcript storage and AI summarization into notes.
