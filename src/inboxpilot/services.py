@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from inboxpilot.ai import AiProvider, estimate_tokens
+from inboxpilot.config import AppConfig
+from inboxpilot.oauth import refresh_oauth_token
 from inboxpilot.classifier import RuleBasedClassifier
 from inboxpilot.models import (
     AiRequest,
@@ -665,6 +667,7 @@ class TokenService:
     store: SqliteStore
     user_id: int
     codec: TokenCodec
+    config: AppConfig
 
     def store_tokens(
         self,
@@ -708,6 +711,49 @@ class TokenService:
             else None,
             "expires_at": record.expires_at,
         }
+
+    def get_access_token(self, provider_name: str, refresh_if_needed: bool = True) -> str:
+        """Summary: Return an access token, refreshing if expired.
+
+        Importance: Keeps provider ingestion working without manual re-auth.
+        Alternatives: Always re-run OAuth flows for each session.
+        """
+
+        record = self.store.get_oauth_token(self.user_id, provider_name)
+        if not record:
+            raise ValueError("OAuth token not found")
+        access_token = self.codec.decode(record.access_token)
+        refresh_token = (
+            self.codec.decode(record.refresh_token) if record.refresh_token else None
+        )
+        if refresh_if_needed and self._expires_soon(record.expires_at):
+            if not refresh_token:
+                raise ValueError("Refresh token not available")
+            token_result = refresh_oauth_token(self.config, provider_name, refresh_token)
+            next_refresh = token_result.refresh_token or refresh_token
+            self.store_tokens(
+                provider_name,
+                token_result.access_token,
+                next_refresh,
+                token_result.expires_at,
+            )
+            return token_result.access_token
+        return access_token
+
+    def _expires_soon(self, expires_at: str | None) -> bool:
+        """Summary: Check if a token is expired or near expiry.
+
+        Importance: Avoids using tokens that are about to expire.
+        Alternatives: Always refresh tokens before use.
+        """
+
+        if not expires_at:
+            return False
+        try:
+            expires = datetime.fromisoformat(expires_at)
+        except ValueError:
+            return False
+        return expires <= datetime.utcnow() + timedelta(seconds=60)
 
 
 @dataclass(frozen=True)

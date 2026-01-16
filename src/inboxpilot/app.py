@@ -119,7 +119,12 @@ def build_services(config: AppConfig) -> AppServices:
         model_name=model_name,
         user_id=user_id,
     )
-    tokens = TokenService(store=store, user_id=user_id, codec=TokenCodec(config.token_secret))
+    tokens = TokenService(
+        store=store,
+        user_id=user_id,
+        codec=TokenCodec(config.token_secret),
+        config=config,
+    )
     ai_audit = AiAuditService(store=store, user_id=user_id)
     return AppServices(
         ingestion=ingestion,

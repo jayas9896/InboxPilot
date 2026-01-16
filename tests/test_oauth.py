@@ -10,6 +10,7 @@ from inboxpilot.config import AppConfig
 from inboxpilot.oauth import (
     build_google_auth_url,
     build_microsoft_auth_url,
+    _refresh_payload,
     _token_payload,
 )
 
@@ -61,4 +62,14 @@ def test_google_token_payload_includes_redirect_uri() -> None:
 
 def test_microsoft_token_payload_includes_scope() -> None:
     payload = _token_payload(_config(), "microsoft", "code123")
+    assert "scope" in payload
+
+
+def test_google_refresh_payload_includes_grant_type() -> None:
+    payload = _refresh_payload(_config(), "google", "refresh")
+    assert payload["grant_type"] == "refresh_token"
+
+
+def test_microsoft_refresh_payload_includes_scope() -> None:
+    payload = _refresh_payload(_config(), "microsoft", "refresh")
     assert "scope" in payload

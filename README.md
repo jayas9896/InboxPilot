@@ -124,6 +124,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - Token endpoint URLs can be overridden with `INBOXPILOT_GOOGLE_TOKEN_URL` and `INBOXPILOT_MICROSOFT_TOKEN_URL`.
 - Triage keywords can be customized with `INBOXPILOT_TRIAGE_HIGH_KEYWORDS` and `INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS`.
 - OAuth callback at `/oauth/callback` exchanges the auth code for access and refresh tokens and stores them.
+- Token refresh is supported when stored tokens expire (requires refresh token).
 - Store tokens using `INBOXPILOT_TOKEN_SECRET` (obfuscation only; replace with a real vault for production).
 
 ## Categories

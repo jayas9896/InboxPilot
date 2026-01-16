@@ -116,6 +116,21 @@ def exchange_oauth_code(config: AppConfig, provider: str, code: str) -> OAuthTok
     return OAuthTokenResult.from_response(response)
 
 
+def refresh_oauth_token(
+    config: AppConfig, provider: str, refresh_token: str
+) -> OAuthTokenResult:
+    """Summary: Refresh OAuth tokens using a refresh token.
+
+    Importance: Keeps long-lived connections active without user re-auth.
+    Alternatives: Require users to reauthorize whenever tokens expire.
+    """
+
+    token_url = _token_url(config, provider)
+    payload = _refresh_payload(config, provider, refresh_token)
+    response = _post_form(token_url, payload)
+    return OAuthTokenResult.from_response(response)
+
+
 def _token_url(config: AppConfig, provider: str) -> str:
     """Summary: Resolve the token endpoint for a provider.
 
@@ -153,6 +168,34 @@ def _token_payload(config: AppConfig, provider: str, code: str) -> dict[str, str
             "client_secret": config.microsoft_client_secret,
             "code": code,
             "grant_type": "authorization_code",
+            "redirect_uri": config.oauth_redirect_uri,
+            "scope": MICROSOFT_SCOPES,
+        }
+    raise ValueError(f"Unknown OAuth provider: {provider}")
+
+
+def _refresh_payload(config: AppConfig, provider: str, refresh_token: str) -> dict[str, str]:
+    """Summary: Build token request parameters for OAuth refresh.
+
+    Importance: Ensures refresh payloads match provider requirements.
+    Alternatives: Build refresh payloads inline.
+    """
+
+    if provider == "google":
+        _ensure_oauth_config(config.google_client_id, config.google_client_secret, provider)
+        return {
+            "client_id": config.google_client_id,
+            "client_secret": config.google_client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+    if provider == "microsoft":
+        _ensure_oauth_config(config.microsoft_client_id, config.microsoft_client_secret, provider)
+        return {
+            "client_id": config.microsoft_client_id,
+            "client_secret": config.microsoft_client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
             "redirect_uri": config.oauth_redirect_uri,
             "scope": MICROSOFT_SCOPES,
         }
