@@ -247,6 +247,15 @@
         <button id="loadTriage">Refresh Triage</button>
         <div class="list" id="triageList"></div>
       </div>
+
+      <div class="card">
+        <h2>OAuth Links</h2>
+        <div class="row">
+          <button id="googleOauth">Google OAuth</button>
+          <button id="microsoftOauth" class="secondary">Microsoft OAuth</button>
+        </div>
+        <div class="list" id="oauthList"></div>
+      </div>
     </section>
 
     <script>
@@ -430,6 +439,24 @@
         renderList(document.getElementById("triageList"), payload, (item) => {
           return `${item.priority}: #${item.id} ${item.subject}`;
         });
+      });
+
+      const renderOauth = (payload) => {
+        renderList(document.getElementById("oauthList"), [payload], (item) => {
+          return `${item.url}`;
+        });
+      };
+
+      document.getElementById("googleOauth").addEventListener("click", async () => {
+        const response = await fetch(`${api}/oauth/google`, { headers: authHeaders() });
+        const payload = await response.json();
+        renderOauth(payload);
+      });
+
+      document.getElementById("microsoftOauth").addEventListener("click", async () => {
+        const response = await fetch(`${api}/oauth/microsoft`, { headers: authHeaders() });
+        const payload = await response.json();
+        renderOauth(payload);
       });
     </script>
   </body>

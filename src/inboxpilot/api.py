@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -229,6 +230,29 @@ def create_app(config: AppConfig) -> FastAPI:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     app = FastAPI(title="InboxPilot API", version="0.1.0")
     services = build_services(config)
+    app.state.oauth_states = {}
+
+    def _register_state(provider: str, state: str) -> None:
+        """Summary: Register an OAuth state token.
+
+        Importance: Enables basic validation of OAuth callbacks.
+        Alternatives: Store state in a database or signed cookies.
+        """
+
+        app.state.oauth_states[state] = {"provider": provider, "created_at": datetime.utcnow()}
+
+    def _validate_state(provider: str, state: str) -> None:
+        """Summary: Validate an OAuth state token.
+
+        Importance: Reduces CSRF risks in OAuth flows.
+        Alternatives: Use a dedicated session store for state.
+        """
+
+        record = app.state.oauth_states.get(state)
+        if not record or record["provider"] != provider:
+            raise HTTPException(status_code=400, detail="Invalid OAuth state")
+        if datetime.utcnow() - record["created_at"] > timedelta(minutes=10):
+            raise HTTPException(status_code=400, detail="OAuth state expired")
 
     def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
         """Summary: Enforce API key authentication when configured.
@@ -652,6 +676,7 @@ def create_app(config: AppConfig) -> FastAPI:
         """
 
         state = create_state_token()
+        _register_state("google", state)
         return {"url": build_google_auth_url(config, state), "state": state}
 
     @app.get("/oauth/microsoft", dependencies=[Depends(require_api_key)])
@@ -663,7 +688,27 @@ def create_app(config: AppConfig) -> FastAPI:
         """
 
         state = create_state_token()
+        _register_state("microsoft", state)
         return {"url": build_microsoft_auth_url(config, state), "state": state}
+
+    @app.get("/oauth/callback", response_class=HTMLResponse)
+    def oauth_callback(provider: str, code: str, state: str) -> str:
+        """Summary: Handle OAuth callback and record a connection.
+
+        Importance: Completes OAuth flow tracking without storing secrets.
+        Alternatives: Implement full token exchange and storage.
+        """
+
+        if provider not in {"google", "microsoft"}:
+            raise HTTPException(status_code=400, detail="Unknown provider")
+        _validate_state(provider, state)
+        services.connections.add_connection(
+            provider_type="oauth",
+            provider_name=provider,
+            status="authorized",
+            details="auth_code_received",
+        )
+        return "<h1>InboxPilot OAuth connected</h1><p>You can close this window.</p>"
 
     return app
 

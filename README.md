@@ -78,6 +78,7 @@ curl http://127.0.0.1:8000/oauth/microsoft
 curl http://127.0.0.1:8000/triage
 curl -X POST http://127.0.0.1:8000/messages/summary -H "Content-Type: application/json" -d "{\"message_id\":1}"
 curl -X POST http://127.0.0.1:8000/messages/follow-up -H "Content-Type: application/json" -d "{\"message_id\":1}"
+curl "http://127.0.0.1:8000/oauth/callback?provider=google&code=demo&state=STATE_FROM_OAUTH"
 ```
 
 ### Run with IMAP (Read-only)
@@ -106,6 +107,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - OAuth client IDs and secrets live in `.env` as `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
 - Set `INBOXPILOT_OAUTH_REDIRECT_URI` to match your OAuth app redirect URL.
 - Triage keywords can be customized with `INBOXPILOT_TRIAGE_HIGH_KEYWORDS` and `INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS`.
+- OAuth callback at `/oauth/callback` records a connection without storing tokens.
 
 ## Categories
 - Categories are first-class objects stored in SQLite.

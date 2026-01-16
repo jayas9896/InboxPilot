@@ -297,6 +297,25 @@ def test_api_message_insights(tmp_path: Path) -> None:
     assert follow_up_response.status_code == 200
 
 
+def test_api_oauth_callback(tmp_path: Path) -> None:
+    """Summary: Verify OAuth callback records a connection.
+
+    Importance: Ensures OAuth flow tracking is functional.
+    Alternatives: Skip callback handling until token exchange is added.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    oauth_response = client.get("/oauth/google")
+    assert oauth_response.status_code == 200
+    state = oauth_response.json()["state"]
+    callback = client.get("/oauth/callback", params={"provider": "google", "code": "abc", "state": state})
+    assert callback.status_code == 200
+    connections = client.get("/connections")
+    assert connections.status_code == 200
+    assert connections.json()[0]["provider_name"] == "google"
+
+
 def test_api_notes(tmp_path: Path) -> None:
     """Summary: Verify notes endpoints work over HTTP.
 

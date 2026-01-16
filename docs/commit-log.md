@@ -21,3 +21,4 @@ CL-0018 | EML ingestion | 2026-01-15 | Added .eml email import support.
 CL-0019 | OAuth helpers | 2026-01-15 | Added OAuth URL helpers for Google and Microsoft.
 CL-0020 | Triage scoring | 2026-01-15 | Added keyword-based inbox triage.
 CL-0021 | Message insights | 2026-01-15 | Added message summaries and follow-up suggestions.
+CL-0022 | OAuth callback | 2026-01-15 | Added OAuth callback handling and UI links.
