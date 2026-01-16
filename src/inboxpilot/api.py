@@ -153,6 +153,19 @@ class NoteCreateRequest(BaseModel):
     content: str
 
 
+class TokenStoreRequest(BaseModel):
+    """Summary: Request payload for storing OAuth tokens.
+
+    Importance: Enables saving tokens for future provider ingestion.
+    Alternatives: Store tokens in an external vault.
+    """
+
+    provider_name: str
+    access_token: str
+    refresh_token: str | None = None
+    expires_at: str | None = None
+
+
 class TaskCreateRequest(BaseModel):
     """Summary: Request payload for task creation.
 
@@ -522,6 +535,22 @@ def create_app(config: AppConfig) -> FastAPI:
 
         suggestion = services.message_insights.suggest_follow_up(payload.message_id)
         return {"suggestion": suggestion}
+
+    @app.post("/tokens", dependencies=[Depends(require_api_key)])
+    def store_tokens(payload: TokenStoreRequest) -> dict[str, Any]:
+        """Summary: Store OAuth tokens for a provider.
+
+        Importance: Prepares provider ingestion with saved tokens.
+        Alternatives: Require interactive OAuth for each run.
+        """
+
+        token_id = services.tokens.store_tokens(
+            payload.provider_name,
+            payload.access_token,
+            payload.refresh_token,
+            payload.expires_at,
+        )
+        return {"id": token_id}
 
     @app.post("/notes", dependencies=[Depends(require_api_key)])
     def add_note(payload: NoteCreateRequest) -> dict[str, Any]:

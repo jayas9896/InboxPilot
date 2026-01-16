@@ -88,6 +88,22 @@ class StoredConnection:
 
 
 @dataclass(frozen=True)
+class StoredToken:
+    """Summary: OAuth token record for a provider.
+
+    Importance: Keeps provider tokens tied to a user and provider.
+    Alternatives: Store tokens in external secret stores only.
+    """
+
+    id: int
+    user_id: int
+    provider_name: str
+    access_token: str
+    refresh_token: str | None
+    expires_at: str | None
+
+
+@dataclass(frozen=True)
 class StoredMeeting:
     """Summary: Meeting record with database identifier.
 
@@ -284,6 +300,18 @@ class SqliteStore:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS oauth_tokens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    provider_name TEXT NOT NULL,
+                    access_token TEXT NOT NULL,
+                    refresh_token TEXT,
+                    expires_at TEXT
+                )
+                """
+            )
             connection.commit()
         self._ensure_column("categories", "user_id")
         self._ensure_column("messages", "user_id")
@@ -362,6 +390,58 @@ class SqliteStore:
             )
             rows = cursor.fetchall()
         return [StoredConnection(*row) for row in rows]
+
+    def upsert_oauth_token(
+        self,
+        user_id: int,
+        provider_name: str,
+        access_token: str,
+        refresh_token: str | None,
+        expires_at: str | None,
+    ) -> int:
+        """Summary: Insert or update an OAuth token record.
+
+        Importance: Supports OAuth-based provider ingestion.
+        Alternatives: Require re-authentication for every session.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                "DELETE FROM oauth_tokens WHERE user_id = ? AND provider_name = ?",
+                (user_id, provider_name),
+            )
+            cursor.execute(
+                """
+                INSERT INTO oauth_tokens (
+                    user_id, provider_name, access_token, refresh_token, expires_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (user_id, provider_name, access_token, refresh_token, expires_at),
+            )
+            token_id = cursor.lastrowid
+            connection_db.commit()
+        return int(token_id)
+
+    def get_oauth_token(self, user_id: int, provider_name: str) -> StoredToken | None:
+        """Summary: Retrieve an OAuth token record.
+
+        Importance: Supplies provider access tokens for ingestion.
+        Alternatives: Force OAuth flows for every use.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            cursor.execute(
+                """
+                SELECT id, user_id, provider_name, access_token, refresh_token, expires_at
+                FROM oauth_tokens
+                WHERE user_id = ? AND provider_name = ?
+                """,
+                (user_id, provider_name),
+            )
+            row = cursor.fetchone()
+        return StoredToken(*row) if row else None
 
     def count_messages(self, user_id: int | None = None) -> int:
         """Summary: Count stored messages.

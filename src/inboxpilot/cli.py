@@ -139,6 +139,12 @@ def build_parser() -> argparse.ArgumentParser:
     follow_up = subparsers.add_parser("suggest-follow-up", help="Suggest a follow-up action")
     follow_up.add_argument("message_id", type=int)
 
+    store_token = subparsers.add_parser("store-token", help="Store OAuth tokens")
+    store_token.add_argument("provider_name", type=str)
+    store_token.add_argument("access_token", type=str)
+    store_token.add_argument("--refresh-token", type=str, default=None)
+    store_token.add_argument("--expires-at", type=str, default=None)
+
     subparsers.add_parser("oauth-google", help="Print Google OAuth URL")
     subparsers.add_parser("oauth-microsoft", help="Print Microsoft OAuth URL")
 
@@ -338,6 +344,13 @@ def run_cli() -> None:
     if args.command == "suggest-follow-up":
         suggestion = services.message_insights.suggest_follow_up(args.message_id)
         print(suggestion)
+        return
+
+    if args.command == "store-token":
+        token_id = services.tokens.store_tokens(
+            args.provider_name, args.access_token, args.refresh_token, args.expires_at
+        )
+        print(f"Stored token {token_id}.")
         return
 
     if args.command == "oauth-google":

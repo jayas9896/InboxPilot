@@ -73,7 +73,8 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
           \"microsoft_client_secret\": \"\",
           \"oauth_redirect_uri\": \"http://localhost:8000/oauth/callback\",
           \"triage_high_keywords\": \"urgent,asap,action required,deadline,follow up\",
-          \"triage_medium_keywords\": \"review,request,question,update,meeting\"
+          \"triage_medium_keywords\": \"review,request,question,update,meeting\",
+          \"token_secret\": \"\"
         }
         """.strip(),
         encoding="utf-8",
@@ -95,3 +96,4 @@ def test_app_config_uses_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert config.oauth_redirect_uri == "http://localhost:8000/oauth/callback"
     assert config.triage_high_keywords
     assert config.triage_medium_keywords
+    assert config.token_secret == ""

@@ -49,6 +49,7 @@ python -m inboxpilot.cli stats
 python -m inboxpilot.cli triage --limit 10
 python -m inboxpilot.cli summarize-message 1
 python -m inboxpilot.cli suggest-follow-up 1
+python -m inboxpilot.cli store-token google ACCESS_TOKEN --refresh-token REFRESH_TOKEN
 python -m inboxpilot.cli oauth-google
 python -m inboxpilot.cli oauth-microsoft
 ```
@@ -81,6 +82,7 @@ curl -X POST http://127.0.0.1:8000/messages/summary -H "Content-Type: applicatio
 curl -X POST http://127.0.0.1:8000/messages/follow-up -H "Content-Type: application/json" -d "{\"message_id\":1}"
 curl "http://127.0.0.1:8000/oauth/callback?provider=google&code=demo&state=STATE_FROM_OAUTH"
 curl -X POST http://127.0.0.1:8000/tasks/update -H "Content-Type: application/json" -d "{\"task_id\":1,\"status\":\"done\"}"
+curl -X POST http://127.0.0.1:8000/tokens -H "Content-Type: application/json" -d "{\"provider_name\":\"google\",\"access_token\":\"ACCESS\",\"refresh_token\":\"REFRESH\"}"
 ```
 
 ### Run with IMAP (Read-only)
@@ -110,6 +112,7 @@ Set `INBOXPILOT_AI_PROVIDER` to:
 - Set `INBOXPILOT_OAUTH_REDIRECT_URI` to match your OAuth app redirect URL.
 - Triage keywords can be customized with `INBOXPILOT_TRIAGE_HIGH_KEYWORDS` and `INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS`.
 - OAuth callback at `/oauth/callback` records a connection without storing tokens.
+- Store tokens using `INBOXPILOT_TOKEN_SECRET` (obfuscation only; replace with a real vault for production).
 
 ## Categories
 - Categories are first-class objects stored in SQLite.

@@ -29,6 +29,7 @@ from inboxpilot.storage.sqlite_store import (
     StoredMessage,
     StoredTask,
 )
+from inboxpilot.token_codec import TokenCodec
 
 
 logger = logging.getLogger(__name__)
@@ -632,6 +633,62 @@ class ConnectionService:
         """
 
         return self.store.list_connections(user_id=self.user_id)
+
+
+@dataclass(frozen=True)
+class TokenService:
+    """Summary: Stores OAuth tokens with basic obfuscation.
+
+    Importance: Enables future provider ingestion without raw token storage.
+    Alternatives: Use a secrets manager or encrypted database.
+    """
+
+    store: SqliteStore
+    user_id: int
+    codec: TokenCodec
+
+    def store_tokens(
+        self,
+        provider_name: str,
+        access_token: str,
+        refresh_token: str | None,
+        expires_at: str | None,
+    ) -> int:
+        """Summary: Store OAuth tokens for a provider.
+
+        Importance: Persists tokens needed for API calls.
+        Alternatives: Require re-authentication for each run.
+        """
+
+        encoded_access = self.codec.encode(access_token)
+        encoded_refresh = self.codec.encode(refresh_token) if refresh_token else None
+        token_id = self.store.upsert_oauth_token(
+            user_id=self.user_id,
+            provider_name=provider_name,
+            access_token=encoded_access,
+            refresh_token=encoded_refresh,
+            expires_at=expires_at,
+        )
+        logger.info("Stored OAuth tokens for %s.", provider_name)
+        return token_id
+
+    def load_tokens(self, provider_name: str) -> dict[str, str | None]:
+        """Summary: Load OAuth tokens for a provider.
+
+        Importance: Supports future provider ingestion logic.
+        Alternatives: Keep tokens only in memory.
+        """
+
+        record = self.store.get_oauth_token(self.user_id, provider_name)
+        if not record:
+            raise ValueError("OAuth token not found")
+        return {
+            "access_token": self.codec.decode(record.access_token),
+            "refresh_token": self.codec.decode(record.refresh_token)
+            if record.refresh_token
+            else None,
+            "expires_at": record.expires_at,
+        }
 
 
 @dataclass(frozen=True)

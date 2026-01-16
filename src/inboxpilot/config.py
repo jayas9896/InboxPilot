@@ -42,6 +42,7 @@ class AppConfig:
     oauth_redirect_uri: str
     triage_high_keywords: list[str]
     triage_medium_keywords: list[str]
+    token_secret: str
 
     @staticmethod
     def from_env() -> "AppConfig":
@@ -90,6 +91,7 @@ class AppConfig:
                     "INBOXPILOT_TRIAGE_MEDIUM_KEYWORDS", defaults["triage_medium_keywords"]
                 )
             ),
+            token_secret=os.getenv("INBOXPILOT_TOKEN_SECRET", defaults["token_secret"]),
         )
 
 

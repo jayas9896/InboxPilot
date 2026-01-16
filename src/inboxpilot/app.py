@@ -22,9 +22,11 @@ from inboxpilot.services import (
     MeetingSummaryService,
     StatsService,
     TriageService,
+    TokenService,
     TaskService,
 )
 from inboxpilot.storage.sqlite_store import SqliteStore
+from inboxpilot.token_codec import TokenCodec
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,7 @@ class AppServices:
     stats: StatsService
     triage: TriageService
     message_insights: MessageInsightsService
+    tokens: TokenService
     store: SqliteStore
     user_id: int
 
@@ -114,6 +117,7 @@ def build_services(config: AppConfig) -> AppServices:
         model_name=model_name,
         user_id=user_id,
     )
+    tokens = TokenService(store=store, user_id=user_id, codec=TokenCodec(config.token_secret))
     return AppServices(
         ingestion=ingestion,
         meetings=meetings,
@@ -125,6 +129,7 @@ def build_services(config: AppConfig) -> AppServices:
         stats=stats,
         triage=triage,
         message_insights=message_insights,
+        tokens=tokens,
         store=store,
         user_id=user_id,
     )

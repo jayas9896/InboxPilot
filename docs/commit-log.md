@@ -23,3 +23,4 @@ CL-0020 | Triage scoring | 2026-01-15 | Added keyword-based inbox triage.
 CL-0021 | Message insights | 2026-01-15 | Added message summaries and follow-up suggestions.
 CL-0022 | OAuth callback | 2026-01-15 | Added OAuth callback handling and UI links.
 CL-0023 | Task status updates | 2026-01-15 | Added task status update support.
+CL-0024 | Token storage | 2026-01-15 | Added obfuscated token storage for OAuth.

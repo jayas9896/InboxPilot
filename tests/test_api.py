@@ -44,6 +44,7 @@ def _build_config(db_path: str) -> AppConfig:
         oauth_redirect_uri="http://localhost:8000/oauth/callback",
         triage_high_keywords=["urgent"],
         triage_medium_keywords=["review"],
+        token_secret="secret",
     )
 
 

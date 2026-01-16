@@ -24,6 +24,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - OAuth Callback: Records connections on redirect without storing tokens.
 - Triage Engine: Keyword-based priority scoring for inbox triage.
 - Message Insights: AI summaries and follow-up suggestions stored as notes.
+- Token Store: Obfuscated OAuth token storage for local usage (replace with real vault in production).
 
 ## Data Flow
 1. User connects an email provider in read-only mode.
