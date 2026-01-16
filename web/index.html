@@ -235,6 +235,12 @@
         </div>
         <div class="list" id="connectionsList"></div>
       </div>
+
+      <div class="card">
+        <h2>Stats</h2>
+        <button id="loadStats">Refresh Stats</button>
+        <div class="list" id="statsList"></div>
+      </div>
     </section>
 
     <script>
@@ -400,6 +406,15 @@
         const payload = await response.json();
         renderList(document.getElementById("connectionsList"), payload, (item) => {
           return `${item.provider_type}/${item.provider_name} - ${item.status}`;
+        });
+      });
+
+      document.getElementById("loadStats").addEventListener("click", async () => {
+        const response = await fetch(`${api}/stats`, { headers: authHeaders() });
+        const payload = await response.json();
+        const items = Object.entries(payload).map(([key, value]) => ({ key, value }));
+        renderList(document.getElementById("statsList"), items, (item) => {
+          return `${item.key}: ${item.value}`;
         });
       });
     </script>

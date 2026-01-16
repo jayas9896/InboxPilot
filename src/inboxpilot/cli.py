@@ -112,6 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("list-connections", help="List integration records")
 
+    subparsers.add_parser("stats", help="Show inbox statistics")
+
     return parser
 
 
@@ -259,6 +261,12 @@ def run_cli() -> None:
                 f"{connection.id}: {connection.provider_type}/{connection.provider_name} "
                 f"{connection.status} ({connection.created_at})"
             )
+        return
+
+    if args.command == "stats":
+        snapshot = services.stats.snapshot()
+        for key, value in snapshot.items():
+            print(f"{key}: {value}")
         return
 
 

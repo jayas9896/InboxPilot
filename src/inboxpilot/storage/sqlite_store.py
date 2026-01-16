@@ -363,6 +363,102 @@ class SqliteStore:
             rows = cursor.fetchall()
         return [StoredConnection(*row) for row in rows]
 
+    def count_messages(self, user_id: int | None = None) -> int:
+        """Summary: Count stored messages.
+
+        Importance: Supports basic analytics and status dashboards.
+        Alternatives: Compute counts by listing messages in memory.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute("SELECT COUNT(*) FROM messages")
+            else:
+                cursor.execute("SELECT COUNT(*) FROM messages WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    def count_meetings(self, user_id: int | None = None) -> int:
+        """Summary: Count stored meetings.
+
+        Importance: Supports meeting analytics and health checks.
+        Alternatives: Count meetings on the client side.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute("SELECT COUNT(*) FROM meetings")
+            else:
+                cursor.execute("SELECT COUNT(*) FROM meetings WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    def count_categories(self, user_id: int | None = None) -> int:
+        """Summary: Count stored categories.
+
+        Importance: Provides insight into category setup.
+        Alternatives: Count categories via list calls.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute("SELECT COUNT(*) FROM categories")
+            else:
+                cursor.execute("SELECT COUNT(*) FROM categories WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    def count_tasks(self, user_id: int | None = None) -> int:
+        """Summary: Count stored tasks.
+
+        Importance: Supports workload overview dashboards.
+        Alternatives: Count tasks on the client side.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute("SELECT COUNT(*) FROM tasks")
+            else:
+                cursor.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    def count_notes(self, user_id: int | None = None) -> int:
+        """Summary: Count stored notes.
+
+        Importance: Provides a snapshot of captured context.
+        Alternatives: Count notes via list operations.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute("SELECT COUNT(*) FROM notes")
+            else:
+                cursor.execute("SELECT COUNT(*) FROM notes WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    def count_connections(self, user_id: int | None = None) -> int:
+        """Summary: Count stored connections.
+
+        Importance: Supports integration health views.
+        Alternatives: Count connections in client code.
+        """
+
+        with self._connection() as connection_db:
+            cursor = connection_db.cursor()
+            if user_id is None:
+                cursor.execute("SELECT COUNT(*) FROM connections")
+            else:
+                cursor.execute("SELECT COUNT(*) FROM connections WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
     def save_messages(self, messages: list[Message], user_id: int | None = None) -> list[int]:
         """Summary: Persist messages and return their database IDs.
 

@@ -41,6 +41,7 @@ python -m inboxpilot.cli summarize-meeting 1
 python -m inboxpilot.cli extract-meeting-tasks 1
 python -m inboxpilot.cli add-connection email gmail connected --details "read-only"
 python -m inboxpilot.cli list-connections
+python -m inboxpilot.cli stats
 ```
 
 ### Run the API (FastAPI)
@@ -60,6 +61,7 @@ Example requests:
 ```
 curl -X POST http://127.0.0.1:8000/ingest/mock -H "Content-Type: application/json" -d "{\"limit\":3}"
 curl http://127.0.0.1:8000/messages
+curl http://127.0.0.1:8000/stats
 ```
 
 ### Run with IMAP (Read-only)

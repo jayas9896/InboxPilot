@@ -531,3 +531,31 @@ class ConnectionService:
         """
 
         return self.store.list_connections(user_id=self.user_id)
+
+
+@dataclass(frozen=True)
+class StatsService:
+    """Summary: Provides lightweight analytics and counts.
+
+    Importance: Enables dashboards and quick health checks.
+    Alternatives: Calculate counts directly in the API or UI.
+    """
+
+    store: SqliteStore
+    user_id: int
+
+    def snapshot(self) -> dict[str, int]:
+        """Summary: Return a snapshot of counts for key entities.
+
+        Importance: Provides a simple metrics view for the MVP.
+        Alternatives: Build a full analytics pipeline.
+        """
+
+        return {
+            "messages": self.store.count_messages(user_id=self.user_id),
+            "meetings": self.store.count_meetings(user_id=self.user_id),
+            "categories": self.store.count_categories(user_id=self.user_id),
+            "tasks": self.store.count_tasks(user_id=self.user_id),
+            "notes": self.store.count_notes(user_id=self.user_id),
+            "connections": self.store.count_connections(user_id=self.user_id),
+        }

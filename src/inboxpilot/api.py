@@ -513,6 +513,16 @@ def create_app(config: AppConfig) -> FastAPI:
             for connection in services.connections.list_connections()
         ]
 
+    @app.get("/stats", dependencies=[Depends(require_api_key)])
+    def stats() -> dict[str, int]:
+        """Summary: Return a snapshot of entity counts.
+
+        Importance: Provides lightweight analytics for dashboards.
+        Alternatives: Build a separate analytics service.
+        """
+
+        return services.stats.snapshot()
+
     return app
 
 

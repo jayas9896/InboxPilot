@@ -212,3 +212,18 @@ def test_api_connections(tmp_path: Path) -> None:
     list_response = client.get("/connections")
     assert list_response.status_code == 200
     assert list_response.json()[0]["provider_name"] == "gmail"
+
+
+def test_api_stats(tmp_path: Path) -> None:
+    """Summary: Verify stats endpoint returns counts.
+
+    Importance: Ensures dashboard metrics are exposed via the API.
+    Alternatives: Use client-side counting only.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    response = client.get("/stats")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "messages" in payload
