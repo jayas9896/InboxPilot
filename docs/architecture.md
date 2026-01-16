@@ -21,7 +21,7 @@ InboxPilot is a local-first personal communication assistant with modular integr
 - Integration Registry: Connection records for email/calendar providers without storing secrets.
 - Analytics Snapshot: Lightweight counts for messages, meetings, categories, tasks, and notes.
 - OAuth Helpers: Provider authorization URL generation for Gmail and Microsoft Graph.
-- OAuth Callback: Records connections on redirect without storing tokens.
+- OAuth Callback: Records connections on redirect and stores a placeholder token (auth code) for MVP.
 - Triage Engine: Keyword-based priority scoring for inbox triage.
 - Message Insights: AI summaries and follow-up suggestions stored as notes.
 - Token Store: Obfuscated OAuth token storage for local usage (replace with real vault in production).

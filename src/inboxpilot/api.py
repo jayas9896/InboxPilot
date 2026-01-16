@@ -759,6 +759,12 @@ def create_app(config: AppConfig) -> FastAPI:
             status="authorized",
             details="auth_code_received",
         )
+        services.tokens.store_tokens(
+            provider_name=provider,
+            access_token=code,
+            refresh_token=None,
+            expires_at=(datetime.utcnow() + timedelta(hours=1)).isoformat(),
+        )
         return "<h1>InboxPilot OAuth connected</h1><p>You can close this window.</p>"
 
     return app

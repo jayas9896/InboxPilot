@@ -39,6 +39,9 @@
 ## AIResponse
 - id, ai_request_id, response_text, latency_ms, token_estimate
 
+## OAuthToken
+- id, user_id, provider_name, access_token, refresh_token, expires_at
+
 ## Tenancy Boundaries
 - All primary entities include user_id in the schema design, even if the initial MVP is single-user.
 - This allows future multi-user support without a schema rewrite.
