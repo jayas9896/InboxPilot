@@ -82,6 +82,10 @@ def build_parser() -> argparse.ArgumentParser:
     note.add_argument("message_id", type=int)
     note.add_argument("content", type=str)
 
+    list_notes = subparsers.add_parser("list-notes", help="List notes")
+    list_notes.add_argument("parent_type", type=str)
+    list_notes.add_argument("parent_id", type=int)
+
     add_task = subparsers.add_parser("add-task", help="Add a task to a message")
     add_task.add_argument("message_id", type=int)
     add_task.add_argument("description", type=str)
@@ -226,6 +230,14 @@ def run_cli() -> None:
     if args.command == "add-note":
         note_id = services.chat.add_note("message", args.message_id, args.content)
         print(f"Added note {note_id}.")
+        return
+
+    if args.command == "list-notes":
+        notes = services.store.list_notes(
+            args.parent_type, args.parent_id, user_id=services.user_id
+        )
+        for note in notes:
+            print(f"{note.parent_type}:{note.parent_id} {note.content}")
         return
 
     if args.command == "add-task":

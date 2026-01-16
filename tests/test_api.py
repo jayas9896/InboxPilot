@@ -227,3 +227,22 @@ def test_api_stats(tmp_path: Path) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert "messages" in payload
+
+
+def test_api_notes(tmp_path: Path) -> None:
+    """Summary: Verify notes endpoints work over HTTP.
+
+    Importance: Ensures notes are retrievable for UI clients.
+    Alternatives: Use CLI-only notes.
+    """
+
+    config = _build_config(str(tmp_path / "test.db"))
+    client = TestClient(create_app(config))
+    create_response = client.post(
+        "/notes",
+        json={"parent_type": "message", "parent_id": 1, "content": "Follow up"},
+    )
+    assert create_response.status_code == 200
+    list_response = client.get("/notes", params={"parent_type": "message", "parent_id": 1})
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["content"] == "Follow up"

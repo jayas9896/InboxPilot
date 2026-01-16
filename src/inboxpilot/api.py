@@ -429,6 +429,19 @@ def create_app(config: AppConfig) -> FastAPI:
         note_id = services.chat.add_note(payload.parent_type, payload.parent_id, payload.content)
         return {"id": note_id}
 
+    @app.get("/notes", dependencies=[Depends(require_api_key)])
+    def list_notes(parent_type: str, parent_id: int) -> list[dict[str, Any]]:
+        """Summary: List notes for a message or meeting.
+
+        Importance: Exposes stored notes for UI clients.
+        Alternatives: List notes only through CLI.
+        """
+
+        return [
+            {"parent_type": note.parent_type, "parent_id": note.parent_id, "content": note.content}
+            for note in services.store.list_notes(parent_type, parent_id, user_id=services.user_id)
+        ]
+
     @app.post("/tasks", dependencies=[Depends(require_api_key)])
     def add_task(payload: TaskCreateRequest) -> dict[str, Any]:
         """Summary: Create a task for a message or meeting.
